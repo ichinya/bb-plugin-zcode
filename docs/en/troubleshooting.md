@@ -20,7 +20,7 @@ An old launch spec put adapter arguments before Node's script. Current registrat
 
 ## The bundled CLI was not found
 
-Install ZCode Desktop on the machine running the agent. If it is in a custom location, set `ZCODE_NATIVE_ENTRY` in the agent environment to its `resources/glm/zcode.cjs`. Keep the complete Desktop installation available.
+Install ZCode Desktop on the machine running the agent. For a custom location, fill **ZCode CLI path** in the plugin settings with its full `resources/glm/zcode.cjs` path. Standalone ACP also accepts `--native-entry PATH` or `ZCODE_NATIVE_ENTRY`. Keep the complete Desktop installation available.
 
 ## A plan or model is missing
 

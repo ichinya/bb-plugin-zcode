@@ -31,13 +31,22 @@ ACP tool permissions offer **allow once** and **deny**. Permanent grants are not
 
 ## Plugin page
 
-The plugin page is a short guide with links to this documentation. It has no
-separate model, plan, mode, queue or project-cleanup settings. Select those
-chat options in BB; Coding Plan and Start Plan quotas are in **Provider usage**.
+The plugin page has one optional setting: **ZCode CLI path** (`nativeEntry`).
+Enter the full path to `resources/glm/zcode.cjs` on the machine running the agent,
+for example `D:\Apps\ZCode\resources\glm\zcode.cjs`. Use the file path, without
+shell quotes. Leave it empty for automatic discovery.
+
+The plugin forwards it to **ZCode CLI** as `ZCODE_NATIVE_ENTRY`, including model
+discovery. Quota inventory and collection use the same path. It is read for each
+new command; re-registration is unnecessary. Restart an already running ACP
+session and refresh the model/usage panel after changing installations.
+
+Model, plan, reasoning and permissions remain chat options. Coding Plan and
+Start Plan quotas are in **Provider usage**.
 
 <figure class="screenshot">
 
-![Simplified ZCode plugin page with chat guidance and documentation links](/screenshots/provider-settings.png)
+![ZCode plugin page with an optional CLI path and chat guidance](/screenshots/provider-settings.png)
 
 <figcaption>Model and permission controls live in the chat, not in a second plugin form.</figcaption>
 </figure>
@@ -50,7 +59,7 @@ Do not run `zcode login` as an installation step. Do not copy account tokens int
 
 ## Optional environment overrides
 
-These belong to the **ACP agent's environment** in BB's ACP provider configuration. The ZCode plugin page has no editable runtime settings. `--dry-run` shows the registration object:
+Other advanced overrides belong to the **ACP agent's environment** in BB's ACP provider configuration. The plugin exposes only the installation-path override. `--dry-run` shows the registration object:
 
 ```sh
 node scripts/register-cli-agent.mjs --dry-run

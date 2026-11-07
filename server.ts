@@ -10,9 +10,23 @@ export { registerUsageSource };
 // Native CLI configuration belongs to the separately registered ACP agent.
 export const ZCODE_PROVIDER_ID = "zcode";
 export const ZCODE_AGENT_COMMAND = "zcode-acp";
+export const ZCODE_CLI_PROVIDER_ID = "acp-zcode-cli";
 
 export default function plugin(bb: BbPluginApi): void {
-  registerUsageSource(bb);
+  const settings = bb.settings.define({
+    nativeEntry: {
+      type: "string",
+      label: "ZCode CLI path / Путь к CLI ZCode",
+      description: "Full path to ZCode's resources/glm/zcode.cjs on the agent machine. Leave empty for automatic discovery. / Полный путь к resources/glm/zcode.cjs на машине агента. Пусто — автоматический поиск.",
+      default: "",
+    },
+  });
+  const nativeEntry = async () => String((await settings.get()).nativeEntry ?? "").trim();
+  bb.providers.experimental_contributeEnv(ZCODE_CLI_PROVIDER_ID, async () => {
+    const value = await nativeEntry();
+    return value ? [{ name: "ZCODE_NATIVE_ENTRY", value, reason: "ZCode CLI installation path" }] : [];
+  });
+  registerUsageSource(bb, nativeEntry);
   const host = bb.hosts.experimental_client({ contract: hostContract });
 
   bb.providers.register({

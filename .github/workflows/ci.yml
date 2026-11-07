@@ -44,6 +44,10 @@ jobs:
       - name: Resolve npm Git dependency from verified checkout
         run: node scripts/ci-module.mjs configure
       - run: npm ci --no-audit --no-fund
+      - name: Test installed ACP entry and custom path options
+        run: node --test .ci-zcode-acp/tests/cli-options.test.mjs .ci-zcode-acp/tests/package-cli.test.mjs
+        env:
+          ZCODE_TEST_PACKAGED_CLI: ${{ github.workspace }}/node_modules/zcode-acp/bin/zcode-acp.mjs
       # The ACP ACL helper uses Windows PowerShell 5.1. Match its module search
       # environment; inheriting pwsh 7's PSModulePath breaks Set-Acl on runners.
       - name: Verify (Windows PowerShell)

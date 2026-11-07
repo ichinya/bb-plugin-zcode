@@ -20,9 +20,9 @@ function ZCodeGuide() {
         </p>
       </div>
       <p className="text-muted-foreground">
-        Advanced launch options belong to the ACP agent configuration.
+        The optional CLI path above overrides automatic ZCode discovery.
         <br />
-        Дополнительные параметры запуска задаются в настройках ACP-агента.
+        Необязательный путь к CLI выше заменяет автоматический поиск ZCode.
       </p>
       <div className="flex gap-4">
         <a className="underline" href="https://ichinya.github.io/bb-plugin-zcode/en/configuration.html" target="_blank" rel="noopener noreferrer">Documentation (EN)</a>

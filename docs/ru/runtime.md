@@ -21,6 +21,24 @@ node bin/zcode-acp.mjs --permission=accept-edits
 
 Укажите эту команду в своём ACP-клиенте. Процесс обменивается построчным ACP JSON-RPC через stdin/stdout; это не интерактивный чат терминала. По умолчанию самостоятельный запуск спрашивает перед изменениями. Явный `--permission=full` разрешает полный режим native runtime; псевдоним `--bb-permission` сохранён для совместимости с BB.
 
+## Нестандартная установка
+
+Выберите встроенный CLI через `--native-entry ПУТЬ` или `--native-entry=ПУТЬ`:
+
+```sh
+node bin/zcode-acp.mjs --native-entry "D:/Apps/ZCode/resources/glm/zcode.cjs"
+node bin/zcode-acp.mjs --doctor --native-entry "D:/Apps/ZCode/resources/glm/zcode.cjs"
+```
+
+Пример для нестандартного расположения на macOS:
+`/Volumes/Apps/ZCode.app/Contents/Resources/glm/zcode.cjs`.
+Аргумент имеет приоритет над `ZCODE_NATIVE_ENTRY`. Если оба отсутствуют,
+проверяются стандартные папки установки. Несуществующий явно заданный файл
+вызывает ошибку, без незаметного выбора другой установки. Пути с пробелами поддерживаются.
+
+В JavaScript передавайте `env: { ...process.env, ZCODE_NATIVE_ENTRY: path }`
+в `NativeAcpAgent`, `collectPlanUsage` или `nativeDoctor(cwd, { env })`.
+
 ## JavaScript API
 
 При установке в качестве зависимости:

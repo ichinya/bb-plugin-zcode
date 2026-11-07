@@ -16,6 +16,6 @@ export const rpcContract = defineRpcContract({
   [GET]: { input: z.object({ resourceId: text, refresh: z.boolean() }), output: measurement, experimental_description: "Read one ZCode plan's actual quota; never collects its sibling plan." },
 });
 export const hostContract = defineRpcContract({
-  inventory: { input: z.object({}), output: z.object({ installed: z.boolean() }), experimental_retryable: true },
-  collect: { input: z.object({ plan: z.enum(["coding", "start"]), refresh: z.boolean() }), output: measurement },
+  inventory: { input: z.object({ nativeEntry: z.string().trim().min(1).optional() }), output: z.object({ installed: z.boolean() }), experimental_retryable: true },
+  collect: { input: z.object({ plan: z.enum(["coding", "start"]), refresh: z.boolean(), nativeEntry: z.string().trim().min(1).optional() }), output: measurement },
 });

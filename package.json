@@ -25,7 +25,7 @@
     "build": "bb plugin build",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
-    "test:ci": "node --test tests/native-wire.test.mjs tests/remote-link.test.mjs tests/usage-cache.test.mjs tests/usage-source.test.mjs tests/auto-tag.test.mjs tests/ci-module.test.mjs",
+    "test:ci": "node --test tests/native-wire.test.mjs tests/native-entry-setting.test.mjs tests/remote-link.test.mjs tests/usage-cache.test.mjs tests/usage-source.test.mjs tests/auto-tag.test.mjs tests/ci-module.test.mjs",
     "verify": "npm run typecheck && npm run build:cli && npm run build && npm run test:ci"
   },
   "bb": {
@@ -50,7 +50,7 @@
   },
   "dependencies": {
     "@get-bb/plugin-sdk": "0.6.132",
-    "zcode-acp": "git+https://github.com/ichinya/zcode-acp.git#cf838ada4436221a0a17761e12a07de13f843b75",
+    "zcode-acp": "git+https://github.com/ichinya/zcode-acp.git#9e7f3f21f556e7d61f7d87b6302f7d3f9339b60e",
     "zod": "^4.6.5"
   },
   "repository": {
