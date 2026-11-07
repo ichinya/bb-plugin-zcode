@@ -16,3 +16,5 @@ remote-link.txt
 *.tgz
 .repowise/
 .ci-zcode-acp/
+docs/.vitepress/cache/
+docs/.vitepress/dist/

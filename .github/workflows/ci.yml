@@ -16,8 +16,6 @@ concurrency:
 
 jobs:
   verify:
-    # The private module's deploy key is available only to trusted branches.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     strategy:
       fail-fast: false
       matrix:
@@ -35,14 +33,13 @@ jobs:
       - name: Read pinned ACP revision
         id: acp
         run: node scripts/ci-module.mjs pin
-      - name: Check out private ACP module (read-only key)
+      - name: Check out pinned ACP module
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ichinya/zcode-acp
           ref: ${{ steps.acp.outputs.sha }}
           path: .ci-zcode-acp
           fetch-depth: 0
-          ssh-key: ${{ secrets.ZCODE_ACP_DEPLOY_KEY }}
           persist-credentials: false
       - name: Resolve npm Git dependency from verified checkout
         run: node scripts/ci-module.mjs configure
