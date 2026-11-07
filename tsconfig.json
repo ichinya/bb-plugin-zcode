@@ -8,7 +8,9 @@
     "lib": ["ES2022", "DOM"],
     "noEmit": true,
     "skipLibCheck": true,
+    "allowJs": true,
+    "checkJs": false,
     "types": ["node"]
   },
-  "include": ["*.ts", "*.tsx"]
+  "include": ["*.ts", "*.tsx", "usage/**/*.ts", "usage/**/*.mjs"]
 }

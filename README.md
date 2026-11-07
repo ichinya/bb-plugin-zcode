@@ -1,8 +1,32 @@
 # bb-plugin-zcode
 
+**The runtime is the separate [`zcode-acp`](https://github.com/ichinya/zcode-acp) package.** This
+BB plugin depends on it and supplies registration, UI and quota presentation.
+Run `npm install` here, then `node scripts/register-cli-agent.mjs --register` to
+add **ZCode CLI** (`acp-zcode-cli`). Registration launches the module directly.
+The old `bin/zcode-cli-acp.mjs` path is a compatibility wrapper. For a standalone
+readiness check, run `node bin/zcode-cli-acp.mjs --doctor`.
+The module requires Node 24+ and installed ZCode, with no npm runtime dependencies.
+See [CLI setup and QR fallback](docs/native-control.md).
+
+This repository builds on [VKirill/bb-plugin-zcode](https://github.com/VKirill/bb-plugin-zcode),
+retaining its original GUI bridge and attribution. Native ACP runtime is maintained
+separately in `ichinya/zcode-acp`. Both repositories currently require GitHub access.
+Machine-local verification receipts and account files are excluded from Git.
+
+Windows account/model discovery was verified against Desktop 3.17.2 / CLI 0.17.1 and BB 0.49.0. Model execution has fixture coverage but has not been live-tested. macOS execution of the new adapter remains unverified. QR pairing/navigation was verified separately; remote ACP is not implemented.
+
+**One BB plugin package includes quota reporting.** Build and install this folder
+with `npm install`, `bb plugin build`, then `bb plugin install . --yes`.
+Coding Plan and Start Plan appear as two rows in BB's usage panel. No separate
+quota plugin is required. The existing ZCode CLI registration and thread/model
+IDs remain unchanged. See [quota integration](docs/usage.md).
+
+The remaining sections describe the original macOS accessibility provider (`zcode`). Its Windows UI helper is still read-only. The new ACP provider uses a separate ID and does not replace that implementation.
+
 **ZCode as a BB provider.** Pick "ZCode" in a BB chat and the task runs in the [ZCode](https://zcode.z.ai) desktop app (Z.ai, GLM-5.3-Flash / GLM-5.3) on your Mac, with the app's own model plan. BB shows the streamed answer, tool cards and permission requests like for any other provider.
 
-ZCode has no public API, so a small bridge (`zcbridge`) drives the app's window through the macOS accessibility API, and reads results from ZCode's own local database (read-only). No token is extracted, no Z.ai endpoint is called by this project, and nothing inside `ZCode.app` is changed.
+The legacy bridge (`zcbridge`) drives the app's window through macOS accessibility and reads results from ZCode's local database. That UI path does not read login tokens. The new standalone ACP path reads the saved Desktop sign-in and obtains temporary project tokens through Z.ai's account service; tokens remain in memory. Neither path changes the installed application bundle.
 
 Русская версия: [ниже](#по-русски).
 

@@ -25,6 +25,17 @@ const prompt = (agent, sessionId, t) => agent.request("session/prompt", { sessio
 const git = (cwd, ...a) => execFileSync("git", ["-C", cwd, ...a], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 const bbServer = [{ name: "bridge", command: "node", args: [], env: [{ name: "BB_ACP_DYNAMIC_TOOL_TOKEN", value: "secret-token" }] }];
 
+test("Windows does not write MCP credentials without an owner-only ACL", { skip: process.platform !== "win32" }, async () => {
+  const d = setup();
+  try {
+    await d.agent.request("initialize", { protocolVersion: 1 });
+    await d.agent.request("session/new", { cwd: d.cwd, mcpServers: bbServer });
+    assert.equal(fs.existsSync(path.join(d.cwd, ".zcode", "config.json")), false);
+  } finally {
+    d.agent.close();
+  }
+});
+
 test("the plugin setting decides the mode: Full access by default, the setting can say Autonomous, and the mode is announced once", async () => {
   const d = setup();
   await d.agent.request("initialize", { protocolVersion: 1 });

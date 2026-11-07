@@ -5,6 +5,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { experimental_defineHostEntry } from "@get-bb/plugin-sdk/host";
 import { hostContract, type HostStatus } from "./contract.js";
+import usageHost from "./usage/host.js";
 
 // The provider bridge is BB's stock ACP bridge; it launches the `zcode-acp` command on the host (see server.ts).
 export { experimental_acpProviderBridge as experimental_providerBridge } from "@get-bb/plugin-sdk/provider-bridge/acp";
@@ -119,8 +120,10 @@ async function status(opts: { models?: boolean; quota?: boolean } = {}): Promise
 export default experimental_defineHostEntry({
   contract: hostContract,
   handlers: {
+    ...usageHost.handlers,
     status: () => status(),
     refreshModels: () => status({ models: true }),
     readQuota: () => status({ quota: true }),
   },
+  dispose: usageHost.dispose,
 });

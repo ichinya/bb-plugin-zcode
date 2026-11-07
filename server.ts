@@ -1,8 +1,11 @@
 import type { BbPluginApi, JsonValue, PluginSettingDescriptor } from "@get-bb/plugin-sdk";
 import { z } from "zod";
-import { hostContract, rpcContract, type HostEntry } from "./contract.js";
+import { hostContract, rpcContract as legacyRpcContract, type HostEntry } from "./contract.js";
+import registerUsageSource from "./usage/server.js";
+import { rpcContract as usageRpcContract } from "./usage/contract.js";
 
-export { rpcContract } from "./contract.js";
+export const rpcContract = { ...legacyRpcContract, ...usageRpcContract };
+export { registerUsageSource };
 
 // The ACP agent (bin/zcode-acp, installed by scripts/install.sh) runs on the machine that has the ZCode desktop app. The default
 // command is a bare name on purpose: the host daemon resolves it through its own PATH, so no home directory is written into the plugin.
@@ -86,6 +89,7 @@ const SETTINGS = {
 } satisfies Record<string, PluginSettingDescriptor>;
 
 export default function plugin(bb: BbPluginApi): void {
+  registerUsageSource(bb);
   const settings = bb.settings.define(SETTINGS);
   const host = bb.hosts.experimental_client({ contract: hostContract });
 
@@ -156,7 +160,7 @@ export default function plugin(bb: BbPluginApi): void {
       .map(([name, value]) => ({ name, value, reason: "ZCode provider setting" }));
   });
 
-  bb.rpc.register(rpcContract, {
+  bb.rpc.register(legacyRpcContract, {
     async hosts({ refresh, hostId }) {
       const listed = await bb.sdk.hosts.list();
       const rows = listed.filter((h) => !hostId || h.id === hostId);

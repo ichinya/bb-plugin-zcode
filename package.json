@@ -1,7 +1,7 @@
 {
   "name": "bb-plugin-zcode",
   "version": "0.4.0",
-  "description": "ZCode as a BB provider: chats that run on the ZCode desktop app (GLM-5.3 / GLM-5.3-Flash) on your Mac, driven through an accessibility bridge.",
+  "description": "ZCode CLI/ACP bridge with Coding Plan, Start Plan and provider sources, plus quota reporting for BB.",
   "keywords": [
     "bb-plugin",
     "provider",
@@ -13,23 +13,31 @@
   "license": "Apache-2.0",
   "type": "module",
   "engines": {
-    "bb": ">=0.46",
-    "bbPluginSdk": ">=0.6.49"
+    "bb": ">=0.49",
+    "bbPluginSdk": ">=0.6.132"
   },
   "scripts": {
+    "build:cli": "node scripts/build-native-auth.mjs --check",
+    "test:cli": "node --test tests/remote-link.test.mjs tests/native-wire.test.mjs",
+    "doctor:cli": "node bin/zcode-cli-acp.mjs --doctor",
+    "register:cli": "node scripts/register-cli-agent.mjs --register",
+    "test:usage": "node --test tests/usage-cache.test.mjs tests/usage-source.test.mjs",
     "build": "bb plugin build",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs"
   },
   "bb": {
     "name": "Провайдер ZCode",
-    "description": "Run BB chats on the ZCode desktop app (GLM-5.3-Flash, GLM-5.3) on your Mac: modes, automatic projects, parallel tasks, MCP.",
+    "description": "ZCode CLI/ACP and separate Coding Plan / Start Plan quotas in BB. Includes the original macOS GUI bridge.",
     "branding": {
       "icon": "./icons/zcode.svg"
     },
     "server": "./server.ts",
     "host": "./host.ts",
-    "app": "./app.tsx"
+    "app": "./app.tsx",
+    "skills": [
+      "skills"
+    ]
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
@@ -38,16 +46,17 @@
     "typescript": "^5.7.0"
   },
   "dependencies": {
-    "@get-bb/plugin-sdk": "0.6.49",
+    "@get-bb/plugin-sdk": "0.6.132",
+    "zcode-acp": "git+https://github.com/ichinya/zcode-acp.git#cf838ada4436221a0a17761e12a07de13f843b75",
     "zod": "^4.6.5"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/VKirill/bb-plugin-zcode.git"
+    "url": "git+https://github.com/ichinya/bb-plugin-zcode.git"
   },
-  "homepage": "https://github.com/VKirill/bb-plugin-zcode#readme",
+  "homepage": "https://github.com/ichinya/bb-plugin-zcode#readme",
   "bugs": {
-    "url": "https://github.com/VKirill/bb-plugin-zcode/issues"
+    "url": "https://github.com/ichinya/bb-plugin-zcode/issues"
   },
   "author": "Kirill Vechkasov"
 }

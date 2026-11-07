@@ -1,0 +1,17 @@
+The original bb-plugin-zcode project is licensed under Apache-2.0; see LICENSE.
+
+The zcode-acp dependency's lib/coding-plan.mjs is adapted from dpolishuk/bb-zcode src/coding-plan.ts,
+commit 6d38b9ef14d53bbce25a3cd8f5c99b6e5cc828de (version 0.14.1).
+Copyright (c) 2026 Dmitry Polishuk. That adapted code and the reference source
+in the module's vendor/bb-zcode/coding-plan.ts are licensed under MIT; the complete notice
+is retained in LICENSES/bb-zcode-MIT.txt.
+
+Local changes replace the runtime schema dependency with narrow local validators,
+use this adapter's workspace identity and support an explicit Desktop storage
+root. The login reader also permits JWT-only Start sign-in and independent plan
+discovery without filtering by Desktop's currently selected connection.
+The module's build-native-auth.mjs produces the runtime from its reference
+source; the plugin build command delegates to it. ACP, account and quota runtime
+implementations now belong to zcode-acp. The plugin retains BB integration and
+the original GUI bridge. The host bundle includes the module's MIT account code,
+so the full attribution is also retained with this plugin's distribution.

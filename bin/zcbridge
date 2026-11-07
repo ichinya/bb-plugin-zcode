@@ -20,7 +20,12 @@ ZCODE_MAX_PARALLEL (env) or ~/.zcode-bridge/config.json {"max_parallel": N}, def
 ~/.zcode-bridge/slots.json) and wait for one up to --queue-timeout seconds (default 900; 0 = fail at once with parallel_limit); a slot is
 free again when its task is completed, failed or cancelled. `zcbridge slots` shows them.
 """
-import argparse, contextlib, fcntl, hashlib, json, os, re, sqlite3, subprocess, sys, time, uuid
+import argparse, contextlib, hashlib, json, os, re, sqlite3, subprocess, sys, time, uuid
+from pathlib import Path
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
 
 HOME = os.path.expanduser("~")
 HERE = os.path.dirname(os.path.realpath(__file__))
@@ -56,16 +61,24 @@ def log(msg):
 
 # ---------------------------------------------------------------- accessibility helper
 def zc(*a, nth=0, check=True, timeout=40):
+    windows = os.name == "nt"
+    if windows and (not a or a[0] not in ("dump", "count", "find", "attrs", "textlen")):
+        raise BridgeError("unsupported_platform", "Windows UI actions are not implemented; no ZCode UI action was attempted")
     if a and a[0] in ("press", "pressup") and len(a) > 1 and a[1] == "AXPopUpButton":
         TRACE.append(dict(control=str(a[2]) if len(a) > 2 else "", t_ms=int((time.time() - TRACE_T0) * 1000)))   # every menu this run opens
     env = dict(os.environ, ZCAX_NTH=str(nth))
     if os.environ.get("ZCBRIDGE_TRACE"): log("zcax %s" % " ".join(str(x)[:40] for x in a))
     try:
-        r = subprocess.run([ZCAX, *a], capture_output=True, text=True, timeout=timeout, env=env)
+        command = [ZCAX, *a]
+        if windows:
+            helper = os.path.join(os.path.dirname(HERE), "native", "zcax-win.ps1")
+            powershell = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
+            command = [powershell, "-NoProfile", "-NonInteractive", "-File", helper, *a]
+        r = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", timeout=timeout, env=env)
     except subprocess.TimeoutExpired:
         raise BridgeError("ax_timeout", "zcax %s timed out" % (a[0],))
-    if check and (r.returncode or r.stdout.startswith("ERR")):
-        out = r.stdout.strip()
+    if (check or windows) and (r.returncode or r.stdout.startswith("ERR")):
+        out = r.stdout.strip() or r.stderr.strip()
         code = "not_running" if "zcode-not-running" in out else "no_window" if "no-window" in out else "ui_element_missing"
         raise BridgeError(code, "zcax %s: %s" % (" ".join(map(str, a)), out))
     return r.stdout
@@ -243,16 +256,45 @@ def pick_menu(item, exact=True, allow=False):
 
 
 @contextlib.contextmanager
+def file_lock(path, timeout=None):
+    f = open(path, "a+b")
+    deadline = None if timeout is None else time.monotonic() + timeout
+    try:
+        while True:
+            try:
+                if os.name == "nt":
+                    f.seek(0)
+                    msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except OSError:
+                if deadline is not None and time.monotonic() >= deadline:
+                    raise BridgeError("busy", "another zcbridge operation holds the lock")
+                time.sleep(0.1)
+        try:
+            yield
+        finally:
+            if os.name == "nt":
+                f.seek(0)
+                msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(f, fcntl.LOCK_UN)
+    finally:
+        f.close()
+
+
+@contextlib.contextmanager
 def ui_lock(timeout=None):
     timeout = timeout or float(os.environ.get("ZCBRIDGE_LOCK_TIMEOUT") or 300)
     os.makedirs(STATE, exist_ok=True)
-    f = open(os.path.join(STATE, "ui.lock"), "w"); end = time.time() + timeout
-    while True:
-        try:
-            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB); break
-        except OSError:
-            if time.time() > end: raise BridgeError("busy", "another zcbridge UI operation holds the lock")
-            time.sleep(0.5)
+    if os.name == "nt":
+        raise BridgeError("unsupported_platform", "Windows UI automation is not implemented; no ZCode UI action was attempted")
+    with file_lock(os.path.join(STATE, "ui.lock"), timeout):
+        yield from ui_locked()
+
+
+def ui_locked():
     prev = None; st0 = None
     try:
         prev = frontmost(); FOCUS.setdefault("before", prev)
@@ -266,13 +308,12 @@ def ui_lock(timeout=None):
                 subprocess.run(["osascript", "-e", 'tell application id "%s" to activate' % prev], timeout=10, capture_output=True)
         except Exception:
             pass
-        fcntl.flock(f, fcntl.LOCK_UN); f.close()
 
 
 # ---------------------------------------------------------------- stores (read-only)
 def conn(path):
     if not os.path.exists(path): raise BridgeError("store_missing", "%s not found" % path)
-    c = sqlite3.connect("file:%s?mode=ro" % path, uri=True, timeout=10); c.row_factory = sqlite3.Row; return c
+    c = sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True, timeout=10); c.row_factory = sqlite3.Row; return c
 
 
 def projects():
@@ -705,12 +746,23 @@ def max_parallel():
 @contextlib.contextmanager
 def slots_flock():
     os.makedirs(STATE, exist_ok=True)
-    f = open(os.path.join(STATE, "slots.lock"), "w"); fcntl.flock(f, fcntl.LOCK_EX)
-    try: yield
-    finally: fcntl.flock(f, fcntl.LOCK_UN); f.close()
+    with file_lock(os.path.join(STATE, "slots.lock")):
+        yield
 
 
 def pid_alive(pid):
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
+        handle = kernel.OpenProcess(0x1000, False, pid)
+        if not handle:
+            return ctypes.get_last_error() == 5
+        kernel.CloseHandle(handle)
+        return True
     try: os.kill(pid, 0); return True
     except PermissionError: return True
     except Exception: return False

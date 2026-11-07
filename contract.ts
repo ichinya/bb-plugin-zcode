@@ -1,5 +1,6 @@
 import { defineRpcContract } from "@get-bb/plugin-sdk";
 import { z } from "zod";
+import { hostContract as usageHostContract } from "./usage/contract.js";
 
 // What a host reports about ZCode on its machine (the host entry runs on the machine that has the ZCode app).
 export const hostStatus = z.object({
@@ -31,6 +32,7 @@ export const hostStatus = z.object({
 export type HostStatus = z.infer<typeof hostStatus>;
 
 export const hostContract = defineRpcContract({
+  ...usageHostContract,
   status: { input: z.object({}).strict(), output: hostStatus, experimental_retryable: true },
   refreshModels: { input: z.object({}).strict(), output: hostStatus },
   readQuota: { input: z.object({}).strict(), output: hostStatus },

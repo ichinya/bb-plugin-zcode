@@ -3,7 +3,7 @@ import { spawn } from "node:child_process";
 import readline from "node:readline";
 
 export function startAgent(command, args, env = {}) {
-  const child = spawn(command, args, { env: { ...process.env, ...env }, stdio: ["pipe", "pipe", "inherit"] });
+  const child = spawn(command, args, { env: { ...process.env, ...env, ...(process.platform === "win32" && env.HOME ? { USERPROFILE: env.HOME } : {}) }, stdio: ["pipe", "pipe", "inherit"] });
   let id = 0;
   const pending = new Map();
   const updates = [];

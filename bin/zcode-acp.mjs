@@ -288,6 +288,10 @@ function excludeFromGit(cwd) {
 function injectMcp(s, servers) {
   if (!Array.isArray(servers) || !servers.length || !s.cwd) return;
   log(`session ${s.id} mcpServers: ${describeMcp(servers)}`);
+  if (process.platform === "win32") {
+    log("MCP forwarding disabled on Windows: owner-only file ACLs are not implemented");
+    return;
+  }
   if (process.env.ZCODE_ACP_MCP === "0") return;
   const dir = path.join(s.cwd, ".zcode");
   const file = path.join(dir, "config.json");
@@ -335,7 +339,7 @@ function injectMcp(s, servers) {
 // under a throw-away folder prefix (a tool's temporary worktrees; setting "Remove auto-created projects under") is taken out of
 // ZCode's list again. Only the list entry goes; ZCode never touches the folder's files.
 const REMOVE_PREFIXES = (process.env.ZCODE_ACP_REMOVE_PREFIXES ?? "~/.lane-pilot/worktrees")
-  .split(/[\n:]/)
+  .split(process.platform === "win32" ? /[\n;]/ : /[\n:]/)
   .map((x) => x.trim().replace(/^~(?=\/|$)/, HOME))
   .filter((x) => x && x !== "-");
 async function endSession(s) {
@@ -368,11 +372,19 @@ function endAllMcp() {
 
 // ---------------------------------------------------------------- zcbridge
 function bridgeEnv() {
-  return { ...process.env, HOME, ZCBRIDGE_OWNER_PID: String(process.pid), PATH: ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin", path.join(HOME, ".agents/bin"), process.env.PATH || ""].join(":") };
+  return { ...process.env, HOME, ZCBRIDGE_OWNER_PID: String(process.pid), PATH: ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin", path.join(HOME, ".agents/bin"), process.env.PATH || ""].join(path.delimiter) };
+}
+function spawnBridge(args) {
+  const env = bridgeEnv();
+  if (process.platform !== "win32") return spawn(BRIDGE, args, { env, stdio: ["ignore", "pipe", "pipe"] });
+  const isNodeScript = /\.[cm]?js$/i.test(BRIDGE);
+  if (/\.exe$/i.test(BRIDGE)) return spawn(BRIDGE, args, { env, stdio: ["ignore", "pipe", "pipe"] });
+  const executable = isNodeScript ? process.execPath : (process.env.ZCODE_ACP_PYTHON || "python");
+  return spawn(executable, [BRIDGE, ...args], { env, stdio: ["ignore", "pipe", "pipe"] });
 }
 function runBridge(args, { timeoutMs = 300000 } = {}) {
   return new Promise((resolve) => {
-    const child = spawn(BRIDGE, args, { env: bridgeEnv(), stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawnBridge(args);
     let out = "";
     let err = "";
     const timer = setTimeout(() => child.kill("SIGTERM"), timeoutMs);
@@ -515,7 +527,7 @@ class Turn {
   // watch lists the task from the start on every run, so the maps above decide what is new.
   watchOnce(onEvent) {
     return new Promise((resolve, reject) => {
-      const child = spawn(BRIDGE, ["watch", this.s.taskId, "--poll", "0.7", "--timeout", String(TURN_TIMEOUT_S)], { env: bridgeEnv(), stdio: ["ignore", "pipe", "pipe"] });
+      const child = spawnBridge(["watch", this.s.taskId, "--poll", "0.7", "--timeout", String(TURN_TIMEOUT_S)]);
       this.child = child;
       let final = null;
       let err = "";
