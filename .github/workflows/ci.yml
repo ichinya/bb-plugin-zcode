@@ -49,8 +49,13 @@ jobs:
       - run: npm ci --no-audit --no-fund
       # The ACP ACL helper uses Windows PowerShell 5.1. Match its module search
       # environment; inheriting pwsh 7's PSModulePath breaks Set-Acl on runners.
-      - run: npm run verify
-        shell: ${{ runner.os == 'Windows' && 'powershell' || 'bash' }}
+      - name: Verify (Windows PowerShell)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: npm run verify
+      - name: Verify (Linux and macOS)
+        if: runner.os != 'Windows'
+        run: npm run verify
 
   tag:
     needs: verify
