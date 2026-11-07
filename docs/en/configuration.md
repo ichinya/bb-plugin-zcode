@@ -27,7 +27,20 @@ Reasoning choices, such as **Low**, **High** and **Max**, come from the selected
 | BB Full | `yolo`. |
 | Explicit planning | `plan`, when selected through the adapter's configuration. |
 
-ACP tool permissions offer **allow once** and **deny**. Permanent grants are not forwarded. The legacy GUI provider's settings do not configure the CLI provider.
+ACP tool permissions offer **allow once** and **deny**. Permanent grants are not forwarded. The legacy GUI launcher's environment does not configure the CLI provider.
+
+## Plugin page
+
+The plugin page is a short guide with links to this documentation. It has no
+separate model, plan, mode, queue or project-cleanup settings. Select those
+chat options in BB; Coding Plan and Start Plan quotas are in **Provider usage**.
+
+<figure class="screenshot">
+
+![Simplified ZCode plugin page with chat guidance and documentation links](/screenshots/provider-settings.png)
+
+<figcaption>Model and permission controls live in the chat, not in a second plugin form.</figcaption>
+</figure>
 
 ## Sign-in
 
@@ -37,7 +50,7 @@ Do not run `zcode login` as an installation step. Do not copy account tokens int
 
 ## Optional environment overrides
 
-These belong to the **ACP agent's environment** in BB's ACP provider configuration, not the legacy ZCode plugin form. `--dry-run` shows the registration object:
+These belong to the **ACP agent's environment** in BB's ACP provider configuration. The ZCode plugin page has no editable runtime settings. `--dry-run` shows the registration object:
 
 ```sh
 node scripts/register-cli-agent.mjs --dry-run

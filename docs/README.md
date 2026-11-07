@@ -17,8 +17,8 @@ Screenshot provenance (7 November 2026):
   Coding Plan, Start Plan and API connection labels. No prompt was submitted.
 - `plugin-installed.png`: a cropped capture of the installed local plugin's
   details, including version 0.1.0.
-- `legacy-settings.png`: a cropped capture of the legacy GUI provider form;
-  no settings were changed.
+- `provider-settings.png`: a cropped capture of the simplified plugin page;
+  model and permissions are configured in the chat, with no legacy form.
 - `plan-quotas.png`: the user's supplied quota-panel screenshot, copied as-is.
 
 Crops exclude conversation history, account identifiers and unrelated sidebar

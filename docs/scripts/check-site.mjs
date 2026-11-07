@@ -13,7 +13,7 @@ assert.deepEqual(languageFiles('en'), languageFiles('ru'), 'English and Russian 
 const files = list(output);
 assert.ok(!files.some(f => /(?:^|[\\/])(verification|skill)(?:[\\/])/.test(path.relative(output, f))), 'Private/local material reached the site');
 assert.ok(!fs.existsSync(path.join(output, 'native-control.html')) && !fs.existsSync(path.join(output, 'usage.html')), 'Old source-only pages reached the site');
-for (const name of ['model-picker.png', 'plan-quotas.png', 'plugin-installed.png', 'legacy-settings.png']) {
+for (const name of ['model-picker.png', 'plan-quotas.png', 'plugin-installed.png', 'provider-settings.png']) {
   const data = fs.readFileSync(path.join(output, 'screenshots', name));
   assert.equal(data.subarray(0, 8).toString('hex'), '89504e470d0a1a0a', `Missing PNG screenshot: ${name}`);
 }

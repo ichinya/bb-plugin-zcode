@@ -11,7 +11,7 @@
 //                     0 = none), counted by zcbridge over running ZCode tasks across every zcode-acp process and every other bridge
 //                     user; a session over the limit waits (and is told so) and starts when a task finishes, or times out
 //
-// Settings (the BB plugin passes them as environment and one argv flag; the defaults below apply when run by hand):
+// Legacy launcher options (environment and BB's permission argv flag):
 //   --bb-permission=accept-edits|full   BB's permission mode of the chat (argv, set by the plugin's permissionCli)
 //   ZCODE_ACP_MODE_DEFAULT   plan|ask|auto|full: ZCode's mode for a session (default full = Full access)
 //   ZCODE_ACP_FOLLOW_CHAT=1  the chat's BB permission mode decides instead (accept-edits -> Autonomous, full -> Full access)
@@ -20,7 +20,7 @@
 //   ZCODE_ACP_MODEL          model override (a ZCode model name); empty = ZCode's own default model
 //   ZCODE_ROUTE              keep|auto|plan|promo: which plan pays for a task (see `zcbridge route`)
 //   ZCODE_ACP_REMOVE_PREFIXES  folders (colon or newline separated, ~ allowed) whose auto-registered projects are removed from ZCode's
-//                            list when the session ends (default ~/.lane-pilot/worktrees)
+//                            list when the session ends (disabled unless explicitly configured)
 //   ZCODE_ACP_AUTOADD=0      do not register unknown folders as ZCode projects
 //   ZCODE_ACP_KEEP_INSTRUCTIONS=1   forward BB's <system_instructions> block to ZCode (dropped by default)
 //   ZCODE_ACP_BRIDGE (path of zcbridge), ZCODE_MAX_PARALLEL (read by zcbridge), ZCODE_ACP_QUEUE_TIMEOUT (seconds, default 900),
@@ -336,9 +336,9 @@ function injectMcp(s, servers) {
 }
 // A session ends (BB closed it, the thread was stopped, or this process is going away): its ZCode task is cancelled when it is still
 // going (a pending card is denied, Stop pressed), which also frees its slot; the MCP entry is removed; a project this session registered
-// under a throw-away folder prefix (a tool's temporary worktrees; setting "Remove auto-created projects under") is taken out of
+// under an explicitly configured throw-away folder prefix is taken out of
 // ZCode's list again. Only the list entry goes; ZCode never touches the folder's files.
-const REMOVE_PREFIXES = (process.env.ZCODE_ACP_REMOVE_PREFIXES ?? "~/.lane-pilot/worktrees")
+const REMOVE_PREFIXES = (process.env.ZCODE_ACP_REMOVE_PREFIXES ?? "")
   .split(process.platform === "win32" ? /[\n;]/ : /[\n:]/)
   .map((x) => x.trim().replace(/^~(?=\/|$)/, HOME))
   .filter((x) => x && x !== "-");

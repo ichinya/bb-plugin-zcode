@@ -16,14 +16,14 @@ Grant macOS Accessibility to the terminal or Node process that runs `zcax`. Keep
 
 ## Settings
 
-<figure class="screenshot">
+The old GUI configuration form has been removed from the BB plugin. The original
+provider ID remains available for existing GUI-backed chats. Advanced bridge
+options can still be supplied explicitly to the legacy launcher through its
+environment; they are separate from [ZCode CLI configuration](./configuration.md).
 
-![Legacy ZCode GUI settings in BB](/screenshots/legacy-settings.png)
-
-<figcaption>This form configures the legacy GUI provider. It does not select the source or permissions for ZCode CLI.</figcaption>
-</figure>
-
-The form includes default mode, whether BB permissions take precedence, the scope of automatic once-only approvals, model override, billing-plan route, task concurrency, automatic projects and instruction forwarding. These are settings of the original GUI implementation.
+Project-list cleanup is disabled by default. The bridge only removes its
+auto-created project entries when `ZCODE_ACP_REMOVE_PREFIXES` is explicitly set.
+There is no preset folder from another application. Project files are not deleted.
 
 `zcbridge doctor` checks the bridge. `zcbridge --help` lists commands for tasks, projects, models, usage and approvals. `zcbridge rewards --claim` explicitly requests a daily reward; it is not part of installing or checking the native ACP provider.
 
