@@ -14,6 +14,27 @@ retaining its original GUI bridge and attribution. Native ACP runtime is maintai
 separately in `ichinya/zcode-acp`. Both repositories currently require GitHub access.
 Machine-local verification receipts and account files are excluded from Git.
 
+## CI and version tags
+
+The plugin version is `0.1.0`. GitHub Actions checks trusted pull requests and
+`main` on Linux, Windows and macOS using Node 24 and the pinned BB 0.49.0 CLI.
+Run `npm ci` and `npm run verify` locally for the same typecheck, generated-auth
+check, plugin build and focused CLI/ACP, quota and release-policy tests. Tests
+use fixtures and do not send model requests. This does not exercise the legacy
+macOS GUI bridge or prove live ZCode model execution.
+
+The private `ichinya/zcode-acp` dependency is checked out at the full commit in
+`package.json` using the read-only deploy key stored in the Actions secret
+`ZCODE_ACP_DEPLOY_KEY`. npm resolves that dependency from the verified local
+checkout. Fork pull requests cannot access this key and skip the private CI;
+a maintainer must bring reviewed changes to a trusted branch for those checks.
+
+After all three CI jobs pass for `main`, Actions creates `v<package version>`.
+Existing tags are never moved, and stale runs skip tagging. For the next
+release, update both manifests with `npm version 0.1.1 --no-git-tag-version`,
+commit and push to `main`. Reusing a version skips its existing tag. Manual
+CI runs on `main` follow the same checks. Tags do not publish an npm package.
+
 Windows account/model discovery was verified against Desktop 3.17.2 / CLI 0.17.1 and BB 0.49.0. Model execution has fixture coverage but has not been live-tested. macOS execution of the new adapter remains unverified. QR pairing/navigation was verified separately; remote ACP is not implemented.
 
 **One BB plugin package includes quota reporting.** Build and install this folder
