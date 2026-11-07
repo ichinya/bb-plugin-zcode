@@ -9,7 +9,7 @@ npm ci
 npm run verify
 ```
 
-This typechecks, checks generated auth files through the pinned module, builds BB bundles and runs focused CLI/ACP, quota and release-policy tests. Fixtures do not send model requests. `npm test` also includes the broader legacy suite and is not the cross-platform CI contract.
+This typechecks, checks generated auth files through the pinned module, builds BB bundles and runs focused CLI/ACP, quota and release-policy tests. Fixtures do not send model requests. `npm test` includes additional tests; the cross-platform CI contract is `npm run verify`.
 
 The `CI` workflow runs on Linux, Windows and macOS with Node 24 and pinned BB CLI 0.49.0. The public module is checked out at the full revision in `package.json`, then npm resolves it from that verified local checkout. No module deploy key is required; fork pull requests can run the same checks.
 

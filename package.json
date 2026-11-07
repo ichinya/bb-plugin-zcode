@@ -30,7 +30,7 @@
   },
   "bb": {
     "name": "Провайдер ZCode",
-    "description": "ZCode CLI/ACP and separate Coding Plan / Start Plan quotas in BB. Includes the original macOS GUI bridge.",
+    "description": "ZCode CLI/ACP and separate Coding Plan / Start Plan quotas in BB.",
     "branding": {
       "icon": "./icons/zcode.svg"
     },

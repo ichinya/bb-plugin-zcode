@@ -37,4 +37,4 @@ The model picker identifies the source in each row: **Coding Plan · Z.ai**, **S
 
 Build and fixture checks pass on Windows, Linux and macOS. Native discovery supports Windows and macOS; Linux CI checks the plugin and synthetic runtime only. Windows account/catalog, source selection and quota collection were checked with ZCode Desktop 3.17.2, bundled CLI 0.17.1 and BB 0.49.0. Real inference and macOS native execution have not been qualified here.
 
-Image/audio input, Team Plan, native interactive questions, browser control, custom subagent profiles, fork/rewind and manual compaction are currently unsupported. The [legacy macOS GUI provider](./legacy.md) is a separate path with different requirements.
+Image/audio input, Team Plan, native interactive questions, browser control, custom subagent profiles, fork/rewind and manual compaction are currently unsupported.

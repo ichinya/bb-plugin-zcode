@@ -1,8 +1,8 @@
 import { defineConfig } from 'vitepress';
 
-const pages = ['index', 'installation', 'configuration', 'quotas', 'remote-control', 'runtime', 'troubleshooting', 'development', 'legacy'];
-const en = ['Overview', 'Installation', 'Configuration', 'Plan quotas', 'QR remote control', 'Standalone zcode-acp', 'Troubleshooting', 'Development & releases', 'Legacy macOS bridge'];
-const ru = ['Обзор', 'Установка', 'Настройка', 'Квоты планов', 'Удалённое управление по QR', 'Самостоятельный zcode-acp', 'Решение проблем', 'Разработка и релизы', 'Прежний мост для macOS'];
+const pages = ['index', 'installation', 'configuration', 'quotas', 'remote-control', 'runtime', 'troubleshooting', 'development'];
+const en = ['Overview', 'Installation', 'Configuration', 'Plan quotas', 'QR remote control', 'Standalone zcode-acp', 'Troubleshooting', 'Development & releases'];
+const ru = ['Обзор', 'Установка', 'Настройка', 'Квоты планов', 'Удалённое управление по QR', 'Самостоятельный zcode-acp', 'Решение проблем', 'Разработка и релизы'];
 const sidebar = (lang: string, labels: string[]) => [{
   text: lang === 'ru' ? 'Руководство' : 'Guide',
   items: pages.map((page, i) => ({ text: labels[i], link: `/${lang}/${page === 'index' ? '' : page}` }))

@@ -2,7 +2,7 @@
 
 ## Select ZCode CLI
 
-Open the model picker in a new BB thread and select **ZCode CLI**. The provider ID is `acp-zcode-cli`. The separate **ZCode** / `zcode` GUI provider is the [legacy macOS bridge](./legacy.md).
+Open the model picker in a new BB thread and select **ZCode CLI**. The provider ID is `acp-zcode-cli`.
 
 ![ZCode CLI models grouped by their source prefixes](/screenshots/model-picker.png)
 
@@ -27,7 +27,7 @@ Reasoning choices, such as **Low**, **High** and **Max**, come from the selected
 | BB Full | `yolo`. |
 | Explicit planning | `plan`, when selected through the adapter's configuration. |
 
-ACP tool permissions offer **allow once** and **deny**. Permanent grants are not forwarded. The legacy GUI launcher's environment does not configure the CLI provider.
+ACP tool permissions offer **allow once** and **deny**. Permanent grants are not forwarded.
 
 ## Plugin page
 

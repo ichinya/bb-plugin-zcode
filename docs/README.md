@@ -18,7 +18,7 @@ Screenshot provenance (7 November 2026):
 - `plugin-installed.png`: a cropped capture of the installed local plugin's
   details, including version 0.1.0.
 - `provider-settings.png`: a cropped capture of the plugin's optional native CLI
-  path field; model and permissions remain chat controls, with no legacy form.
+  path field; model and permissions remain chat controls.
 - `plan-quotas.png`: the user's supplied quota-panel screenshot, copied as-is.
 
 Crops exclude conversation history, account identifiers and unrelated sidebar

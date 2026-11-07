@@ -10,8 +10,6 @@
 | Git | Available on PATH to clone the plugin and its pinned public module dependency. |
 | Windows | Windows PowerShell 5.1 for protecting local session directories. |
 
-The CLI path does not require Python, Swift or Accessibility permission. Those belong to the [legacy macOS bridge](./legacy.md).
-
 ## 1. Clone and build
 
 Run the following in PowerShell on Windows or a terminal on macOS:
