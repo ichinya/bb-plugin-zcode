@@ -47,7 +47,10 @@ jobs:
       - name: Resolve npm Git dependency from verified checkout
         run: node scripts/ci-module.mjs configure
       - run: npm ci --no-audit --no-fund
+      # The ACP ACL helper uses Windows PowerShell 5.1. Match its module search
+      # environment; inheriting pwsh 7's PSModulePath breaks Set-Acl on runners.
       - run: npm run verify
+        shell: ${{ runner.os == 'Windows' && 'powershell' || 'bash' }}
 
   tag:
     needs: verify
