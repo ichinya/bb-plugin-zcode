@@ -30,24 +30,25 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-      - name: Read pinned ACP revision
-        id: acp
-        run: node scripts/ci-module.mjs pin
-      - name: Check out pinned ACP module
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Runtime source is built separately; npm has no ACP dependency.
+      - name: Check out Rust ACP source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: ichinya/zcode-acp
-          ref: ${{ steps.acp.outputs.sha }}
+          ref: v0.3.2
           path: .ci-zcode-acp
-          fetch-depth: 0
           persist-credentials: false
-      - name: Resolve npm Git dependency from verified checkout
-        run: node scripts/ci-module.mjs configure
+      - run: rustup toolchain install stable --profile minimal
+      - run: rustup default stable
+      - run: cargo build --release --locked
+        working-directory: .ci-zcode-acp
+      - name: Select the built native executable
+        shell: bash
+        run: |
+          suffix=""
+          if [ "$RUNNER_OS" = "Windows" ]; then suffix=".exe"; fi
+          echo "ZCODE_ACP_BIN=$GITHUB_WORKSPACE/.ci-zcode-acp/target/release/zcode-acp$suffix" >> "$GITHUB_ENV"
       - run: npm ci --no-audit --no-fund
-      - name: Test installed ACP entry and custom path options
-        run: node --test .ci-zcode-acp/tests/cli-options.test.mjs .ci-zcode-acp/tests/package-cli.test.mjs
-        env:
-          ZCODE_TEST_PACKAGED_CLI: ${{ github.workspace }}/node_modules/zcode-acp/bin/zcode-acp.mjs
       # The ACP ACL helper uses Windows PowerShell 5.1. Match its module search
       # environment; inheriting pwsh 7's PSModulePath breaks Set-Acl on runners.
       - name: Verify (Windows PowerShell)

@@ -8,11 +8,11 @@ Use the models available in your ZCode account from BB. The plugin registers **Z
 
 | Component | Role |
 | --- | --- |
-| `bb-plugin-zcode` | BB integration, registration, UI and quota presentation. Installed plugin ID: `zcode`. |
-| [`zcode-acp`](https://github.com/ichinya/zcode-acp) | Standalone Node.js adapter: ACP transport, Desktop authorization, native sessions, model catalog and quota collection. Installed as a pinned dependency. |
+| [`bb-plugin-zcode`](https://github.com/ichinya/bb-plugin-zcode) | BB integration, registration, UI and quota presentation. Package: `bb-plugin-zcode-acp`; installed plugin ID: `zcode-acp`. |
+| [`zcode-acp`](https://github.com/ichinya/zcode-acp) | Standalone Rust executable: ACP, Desktop authorization, sessions, models and quotas. Install/update in plugin settings, or select PATH/a custom path. |
 | **ZCode CLI** (`acp-zcode-cli`) | The ACP provider to select in a new BB thread. |
 
-A sibling checkout of `zcode-acp` is unnecessary. The module is an npm dependency, not a second BB plugin.
+The runtime is a separate executable, not a second BB plugin or npm dependency. The adapter automatically uses ZCode's embedded Electron/Node runtime, with no separate Node.js installation required for a recognized bundle.
 
 ## Plans stay separate
 
@@ -35,6 +35,6 @@ The model picker identifies the source in each row: **Coding Plan · Z.ai**, **S
 
 ## Verification and limits
 
-Build and fixture checks pass on Windows, Linux and macOS. Native discovery supports Windows and macOS; Linux CI checks the plugin and synthetic runtime only. Windows account/catalog, source selection and quota collection were checked with ZCode Desktop 3.17.2, bundled CLI 0.17.1 and BB 0.49.0. Real inference and macOS native execution have not been qualified here.
+The Rust build and fixture checks have been run locally on Windows. Cross-platform builds are configured in CI; remote results for this rewrite have not yet been established. Native discovery supports Windows and macOS; Linux CI checks the plugin and synthetic runtime only. Windows account/catalog, source selection and quota collection were checked with ZCode Desktop 3.17.2, bundled CLI 0.17.1 and BB 0.49.0. Real inference and macOS native execution have not been qualified here.
 
 Image/audio input, Team Plan, native interactive questions, browser control, custom subagent profiles, fork/rewind and manual compaction are currently unsupported.

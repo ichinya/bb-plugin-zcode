@@ -1,76 +1,82 @@
 # Standalone zcode-acp
 
-[`zcode-acp`](https://github.com/ichinya/zcode-acp) can run without BB. It is a separate Node.js module with no BB SDK or runtime npm dependencies. It uses the native `app-server --stdio` bundled with installed ZCode Desktop.
+[zcode-acp](https://github.com/ichinya/zcode-acp) is a standalone **Rust executable**. It serves ACP over stdin/stdout and can be used by any compatible ACP client, without BB.
 
-## Run from a checkout
+The adapter launches the installed ZCode `resources/glm/zcode.cjs` through **ZCode's own Electron/Node runtime**. A separate Node.js installation is not needed for a recognized ZCode bundle. Windows session ACL protection uses Windows PowerShell 5.1.
 
-Requires Node 24+, Git and signed-in ZCode Desktop on Windows or macOS:
+## Build and install
+
+Published [zcode-acp releases](https://github.com/ichinya/zcode-acp/releases) receive binary ZIPs automatically after the build matrix passes: Windows x64, Linux x64, macOS ARM64 and macOS Intel. Each ZIP has a `.sha256` checksum file. Extract the executable and add it to PATH, or select its full path in the plugin. Prebuilt executables need no Rust toolchain.
+
+Install the stable Rust toolchain, then:
 
 ```sh
 git clone https://github.com/ichinya/zcode-acp.git
 cd zcode-acp
-node bin/zcode-acp.mjs --help
-node bin/zcode-acp.mjs --doctor
+cargo build --release --locked
+cargo install --path . --locked
 ```
 
-Doctor contacts account/catalog services, with no model prompt. To start the ACP transport:
+`cargo install` places the command in Cargo's bin directory. Add that directory to PATH, or configure the full executable path in your client. A prebuilt binary needs no Rust installation. On Windows the local release build is `target/release/zcode-acp.exe`; on macOS it is `target/release/zcode-acp`.
+
+## Commands
 
 ```sh
-node bin/zcode-acp.mjs --permission=accept-edits
+zcode-acp --help
+zcode-acp --version
+zcode-acp --doctor
+zcode-acp --permission=accept-edits
+zcode-acp inventory --json
+zcode-acp account-scope --json
+zcode-acp usage --plan coding --json
+zcode-acp usage --plan start --json
+zcode-acp runtime-info --json
 ```
 
-Configure that command in your ACP client. The process exchanges newline-delimited ACP JSON-RPC over stdin/stdout; it is not an interactive terminal chat. The default standalone mode asks before changes. Explicit `--permission=full` permits the full native mode; the `--bb-permission` alias is retained for BB compatibility.
+The command without a subcommand serves ACP, not an interactive terminal chat. Default mode is `build`; `--permission=full` permits `yolo`. `--bb-permission` is a compatibility alias and takes precedence.
 
-## Custom installation path
+Doctor checks the account and model catalog, without inference. Inventory and account-scope are local-only and do not start the engine. Each usage command collects exactly one plan, without starting an ACP session, sending a model prompt or claiming rewards. Treat the opaque account scope as a private cache key.
 
-Use `--native-entry PATH` or `--native-entry=PATH` to select the bundled CLI:
+## Custom paths
 
 ```sh
-node bin/zcode-acp.mjs --native-entry "D:/Apps/ZCode/resources/glm/zcode.cjs"
-node bin/zcode-acp.mjs --doctor --native-entry "D:/Apps/ZCode/resources/glm/zcode.cjs"
+zcode-acp --native-entry "D:/Apps/ZCode/resources/glm/zcode.cjs" --node "C:/Program Files/nodejs/node.exe"
 ```
 
-On macOS, a custom example is `/Volumes/Apps/ZCode.app/Contents/Resources/glm/zcode.cjs`.
-The flag overrides `ZCODE_NATIVE_ENTRY`; with neither, standard installation
-paths are tried. An explicit missing file causes an error rather than silently
-selecting another installation. Paths containing spaces are supported.
+On macOS a custom ZCode path might be `/Volumes/Apps/ZCode.app/Contents/Resources/glm/zcode.cjs`. `--native-entry` overrides `ZCODE_NATIVE_ENTRY`; otherwise standard Windows/macOS locations are searched. A missing explicit file is an error.
 
-For JavaScript callers, pass `env: { ...process.env, ZCODE_NATIVE_ENTRY: path }`
-to `NativeAcpAgent`, `collectPlanUsage` or `nativeDoctor(cwd, { env })`.
+Runtime selection, in priority order:
 
-## JavaScript API
+1. Explicit `--node`, then `ZCODE_NODE`. An invalid override fails without switching to another runtime.
+2. The selected CLI's bundle, identified by `.node-bundle-meta.json` declaring `electron-node`: `ZCode.exe` on Windows, or the executable from the same app's `Contents/MacOS` on macOS.
+3. `node` from PATH for a standalone CLI without a recognized bundled runtime. This fallback requires Node.js 24+.
 
-When installed as a dependency:
+`ELECTRON_RUN_AS_NODE=1` is set only for the bundled Electron child process. An inherited Electron flag is removed for external Node; the parent environment is unchanged. Runtime failures after launch are not retried with another executable, and prompts are never resent automatically.
 
-```js
-import {
-  collectPlanUsage,
-  getAccountFingerprint,
-  getRuntimeInfo,
-} from 'zcode-acp';
+`inventory --json` and `--doctor` include `nativeRuntime` with `kind`, `executable` and `source`, so the chosen executable can be inspected without guessing.
 
-const runtime = getRuntimeInfo();
-const usage = await collectPlanUsage('start'); // 'coding' is also supported
-const accountScope = await getAccountFingerprint();
-```
+## Process contract
 
-Importing the package root has no process, stdio or network side effects. Calling the collectors does contact account services. `getRuntimeInfo()` returns the version, CLI path and revision. The account fingerprint is an opaque in-memory cache scope, not a credential or public account ID. Quota responses can contain account information; handle them accordingly.
+ACP uses protocol version 1 and newline-delimited JSON-RPC 2.0. Stdout contains protocol messages only. Inventory, account-scope and runtime-info return JSON with `schemaVersion: 1`. Usage returns the established quota object (`status`, `plan`, `accountEmail`, `planLabel`, and `windows` on success). No credentials are returned by these commands.
 
-Other public exports include `NativeAcpAgent`, `findNativeEntry`, `nativeDoctor`, `codingQuotaUsage` and `startQuotaUsage`. Types are declared in the module's `index.d.ts`. Importing the explicit `zcode-acp/cli` or `zcode-acp/stdio` entry starts I/O.
+The BB plugin invokes this process contract and has no npm dependency on the adapter. The provider launches the Rust executable directly, from PATH or the configured path. The adapter then selects the runtime as described above. The old JavaScript implementation remains in the source tree as a regression reference; it is not used by the Rust binary or the plugin.
 
-## Storage and lifecycle
+## Sessions and checks
 
-The adapter owns `bb-native-*` sessions in `~/.zcode-bridge/native-acp`. Session bindings, isolated databases and logs are separate from Desktop-owned tasks. Reusing an existing session requires the same workspace. Closing the connection cancels its own work and closes its native processes.
-
-See [configuration](./configuration.md) for environment variables, authentication and modes, and [overview](./index.md#verification-and-limits) for current limits.
-
-## Module checks
-
-From the module checkout:
+Sessions retain `bb-native-*` IDs and version-1 `binding.json` files in `~/.zcode-bridge/native-acp`. They use separate databases and logs, require the same canonical workspace on resume, and never attach to Desktop-owned tasks. A missing native history after attempted input causes an error; prompts are never automatically resent.
 
 ```sh
-node scripts/build-native-auth.mjs --check
-node --test tests/*.test.mjs
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+cargo test --locked
+cargo build --release --locked
+node --test tests/rust-wire.test.mjs
 ```
 
-Tests use synthetic servers and account responses. Windows ACL tests require Windows PowerShell. Apache-2.0 covers this module; the included account-adapter source has its MIT notice in `NOTICE` and `LICENSES/`.
+The wire tests use Node 24 and a synthetic engine, without account/model requests. CI is configured to build Windows x64, Linux x64 and macOS ARM64/x64 binaries. A configured CI matrix does not establish native ZCode compatibility on every OS; verify it on the target machine.
+
+Apache-2.0, with the retained MIT account-flow attribution in `NOTICE` and `LICENSES/`.
+
+## Publishing binaries
+
+Set the version in `Cargo.toml`, run `cargo check` to update `Cargo.lock`, commit the source and workflow, then publish a GitHub Release with the matching tag (for example `v0.3.1`). The `release: published` event checks out that tag, runs the matrix checks and attaches the archives and SHA-256 files to the existing release. Stable releases and prereleases are supported; drafts do not trigger builds. Re-running the release workflow replaces its assets without creating another release. Push/PR/manual CI runs build artifacts but do not publish a release.

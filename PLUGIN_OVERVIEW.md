@@ -1,17 +1,19 @@
-Run BB chats on the ZCode desktop app (Z.ai GLM-5.3-Flash and GLM-5.3) on your Mac, with the app's own plan.
+## Plans and models
 
-## What you get
+Choose **ZCode CLI** in a BB chat, then select a Coding Plan, Start Plan or personal API model. Source names stay visible in the model picker. Start Plan is ZCode's free plan; its models appear when the account has a verified, positive, unexpired balance. Coding Plan requires a paid subscription. Personal API connections use the providers and billing already configured in ZCode.
 
-- **ZCode as a provider** in the BB composer: streamed answers, tool cards, permission requests, token usage.
-- **Modes you choose in Settings > Plugins > ZCode provider**: Full access (default), Autonomous, Ask before changes, Plan.
-- **Projects handled for you**: a chat's folder works in the ZCode project of that folder; unknown folders are registered through ZCode's own open-folder link, even with non-ASCII paths.
-- **Parallel tasks** (default 3), models read from your ZCode, optional daily free-token claim.
-- A **status block** on the settings page: app found, bridge version, signed in, accessibility, models, plan, quota.
+## Installation and updates
 
-## How it works
+Open the plugin settings and choose the computer running the agent. The Rust ACP panel shows the current and latest stable versions, with Install, Check for updates and Update controls. Downloads come from the separate [zcode-acp releases](https://github.com/ichinya/zcode-acp/releases), with SHA-256 and version checks. You can also use an executable from PATH or a custom path.
 
-A small bridge drives the ZCode window through the macOS accessibility API only to send, stop, approve and pick things, and reads task state and answers from ZCode's local database (read-only). No token is extracted, no Z.ai endpoint is called, nothing inside the app is modified. The macOS-only bridge is installed once with `scripts/install.sh` (it builds the accessibility helper and asks you to grant Accessibility).
+## Quotas and permissions
+
+Provider usage shows Coding Plan and Start Plan quotas separately for each computer. Reasoning and permissions are selected in the chat. Accept edits and Full modes map to ZCode's native permission modes, and tool approvals stay in BB.
 
 ## Requirements
 
-macOS, the ZCode app signed in, Python 3, Node 20+, Xcode Command Line Tools. ZCode has no public API, so a ZCode update can break a step; see the README for limits and troubleshooting.
+Requires BB 0.49+ and ZCode Desktop installed and signed in on the agent computer. Windows and macOS are supported; the adapter reuses ZCode's bundled runtime, so a separate Node.js installation is optional. The adapter reads existing Desktop sign-in and keeps its sessions separate. It does not modify the installed ZCode application or its credential files.
+
+This is an unofficial integration, unaffiliated with Z.ai, ZCode or BB.
+
+[Installation and configuration](https://ichinya.github.io/bb-plugin-zcode/en/) · [Документация на русском](https://ichinya.github.io/bb-plugin-zcode/ru/)

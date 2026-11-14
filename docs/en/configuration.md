@@ -31,7 +31,11 @@ ACP tool permissions offer **allow once** and **deny**. Permanent grants are not
 
 ## Plugin page
 
-The plugin page has one optional setting: **ZCode CLI path** (`nativeEntry`).
+The **zcode-acp · Rust** section shows the current/latest versions for the selected computer. **Install**, **Check for updates** and **Update** download a stable GitHub Release binary after SHA-256 verification. See [installation](./installation.md).
+
+**ACP executable** (`acpCommand`): leave empty to use the plugin-managed installation on that computer, then `zcode-acp` from PATH, or enter a full path to the Rust binary (for example `D:\Tools\zcode-acp.exe`). It is used for chat, model discovery and quota commands. An explicit missing executable fails without falling back. Do not include arguments or shell quotes. After downloading, **Use installed ACP** can clear a custom override; this setting applies to all computers.
+
+**ZCode CLI path** (`nativeEntry`):
 Enter the full path to `resources/glm/zcode.cjs` on the machine running the agent,
 for example `D:\Apps\ZCode\resources\glm\zcode.cjs`. Use the file path, without
 shell quotes. Leave it empty for automatic discovery.
@@ -46,9 +50,9 @@ Start Plan quotas are in **Provider usage**.
 
 <figure class="screenshot">
 
-![ZCode plugin page with an optional CLI path and chat guidance](/screenshots/provider-settings.png)
+![Earlier plugin page showing the ZCode installation path; ACP executable is now a separate field](/screenshots/provider-settings.png)
 
-<figcaption>Model and permission controls live in the chat, not in a second plugin form.</figcaption>
+<figcaption>Earlier screenshot: current settings also include ACP executable. Model and permission controls remain in the chat.</figcaption>
 </figure>
 
 ## Sign-in
@@ -59,14 +63,15 @@ Do not run `zcode login` as an installation step. Do not copy account tokens int
 
 ## Optional environment overrides
 
-Other advanced overrides belong to the **ACP agent's environment** in BB's ACP provider configuration. The plugin exposes only the installation-path override. `--dry-run` shows the registration object:
+Advanced overrides belong to the **environment of the agent host**. The plugin exposes the ACP executable and ZCode installation path. The CLI lists its supported flags:
 
 ```sh
-node scripts/register-cli-agent.mjs --dry-run
+zcode-acp --help
 ```
 
 | Variable | Purpose |
 | --- | --- |
+| `ZCODE_NODE` | Explicit runtime override. Default: the selected ZCode bundle's runtime, then Node.js 24+ from the agent host PATH. `--node` takes precedence. |
 | `ZCODE_NATIVE_ENTRY` | Absolute path to the installed `resources/glm/zcode.cjs` when automatic discovery fails. |
 | `ZCODE_STORAGE_DIR` | Explicit Desktop storage directory; otherwise `.zcode` under the configured data base/home is used. |
 | `ZCODE_DATA_BASE_DIR` | Base directory for the default `.zcode` storage location. |
@@ -74,4 +79,4 @@ node scripts/register-cli-agent.mjs --dry-run
 | `ZCODE_NATIVE_MODE` | `build`, `plan`, `edit` or `yolo`, within BB's permission limit. |
 | `ZCODE_NATIVE_MEMORY` | `1` enables native memory for future sessions. Off by default to avoid background model requests. |
 
-Re-registering replaces this agent's launch object, including its environment. Reapply custom overrides afterward. Windows session folders use a current-user ACL; POSIX folders use mode 0700. ACP sessions use `bb-native-*` IDs and never resume Desktop-owned tasks.
+Restart existing ACP sessions after changing their environment. Windows session folders use a current-user ACL; POSIX folders use mode 0700. ACP sessions use `bb-native-*` IDs and never resume Desktop-owned tasks.

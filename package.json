@@ -1,7 +1,7 @@
 {
-  "name": "bb-plugin-zcode",
-  "version": "0.1.0",
-  "description": "ZCode CLI/ACP bridge with Coding Plan, Start Plan and provider sources, plus quota reporting for BB.",
+  "name": "bb-plugin-zcode-acp",
+  "version": "0.1.1",
+  "description": "ZCode Coding Plan, Start Plan and personal API models in BB, with Rust ACP installation, updates and plan quotas.",
   "keywords": [
     "bb-plugin",
     "provider",
@@ -24,13 +24,13 @@
     "test:usage": "node --test tests/usage-cache.test.mjs tests/usage-source.test.mjs",
     "build": "bb plugin build",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/*.test.mjs",
-    "test:ci": "node --test tests/native-wire.test.mjs tests/native-entry-setting.test.mjs tests/remote-link.test.mjs tests/usage-cache.test.mjs tests/usage-source.test.mjs tests/auto-tag.test.mjs tests/ci-module.test.mjs",
+    "test": "npm run test:ci",
+    "test:ci": "node --test tests/native-wire.test.mjs tests/native-entry-setting.test.mjs tests/native-cli.test.mjs tests/acp-installer.test.mjs tests/remote-link.test.mjs tests/usage-cache.test.mjs tests/usage-source.test.mjs tests/auto-tag.test.mjs",
     "verify": "npm run typecheck && npm run build:cli && npm run build && npm run test:ci"
   },
   "bb": {
-    "name": "Провайдер ZCode",
-    "description": "ZCode CLI/ACP and separate Coding Plan / Start Plan quotas in BB.",
+    "name": "ZCode ACP",
+    "description": "Use ZCode Coding Plan, free Start Plan and personal API models, with ACP installation and separate quotas.",
     "branding": {
       "icon": "./icons/zcode.svg"
     },
@@ -50,7 +50,7 @@
   },
   "dependencies": {
     "@get-bb/plugin-sdk": "0.6.132",
-    "zcode-acp": "git+https://github.com/ichinya/zcode-acp.git#9e7f3f21f556e7d61f7d87b6302f7d3f9339b60e",
+    "fflate": "0.8.3",
     "zod": "^4.6.5"
   },
   "repository": {

@@ -24,9 +24,13 @@ Install ZCode Desktop on the machine running the agent. For a custom location, f
 
 ## A plan or model is missing
 
+ZCode 3.18.2 stores Desktop sign-in as `enc:v2`. Use Rust ACP **0.3.2 or newer**; older adapters can mistake that format for a signed-out account and hide both Coding Plan and Start Plan while personal API connections remain visible. The adapter reads the existing OS keyring (Windows Credential Manager, macOS Keychain or Linux Secret Service), or the same configured secret/secret file as Desktop. It does not change Desktop files or create OS credentials. If the OS store is locked or unavailable, unlock it and retry; do not replace or export the account files.
+
 Reconnect the correct account in Desktop and run doctor. Start Plan appears only with a verified positive balance for a recognized catalog model. An expired, future or exhausted grant is excluded. API sources must already be configured in ZCode. Available source/model combinations can differ between accounts.
 
 ## Quotas fail or remain stale
+
+ACP 0.3.2 uses the operating system's trusted CA certificates for account HTTPS requests. This also fixes installations where the older adapter intermittently rejected a service certificate that Windows trusted. Transport errors distinguish TLS validation, DNS and connection failures without exposing tokens or key-bearing URLs.
 
 Select the correct machine and an individual ZCode source in **Provider usage**, then reload. A combined-panel warning may originate from another provider. Reconnect expired authorization in Desktop. Old visible values retain their previous timestamp and are not a fresh balance.
 

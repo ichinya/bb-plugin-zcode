@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn, execFileSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { once } from "node:events";
 import fs from "node:fs";
 import os from "node:os";
@@ -7,15 +7,18 @@ import path from "node:path";
 import readline from "node:readline";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { launchSpec } from "../dist/server.js";
 
-const registrar = fileURLToPath(new URL("../scripts/register-cli-agent.mjs", import.meta.url));
 const fixture = fileURLToPath(new URL("./support/fake-native-server.mjs", import.meta.url));
-function start(t, mode = "normal", permission = "accept-edits") {
+function start(t, mode = "normal", permission = "accept-edits", fromPath = false) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "zcode-acp-wire-"));
   assert.equal(path.dirname(path.resolve(root)), path.resolve(os.tmpdir()));
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^ZCODE_|TOKEN|SECRET|API_KEY|CREDENTIAL/.test(key)));
-  Object.assign(env, { ZCODE_NATIVE_ENTRY: fixture, ZCODE_ACP_STATE_DIR: root, ZCODE_DATA_BASE_DIR: root, FAKE_NATIVE_MODE: mode });
-  const spec = JSON.parse(execFileSync(process.execPath, [registrar, "--dry-run"], { encoding: "utf8", windowsHide: true })).agent;
+  Object.assign(env, { ZCODE_NATIVE_ENTRY: fixture, ZCODE_ACP_STATE_DIR: root, ZCODE_DATA_BASE_DIR: root, FAKE_NATIVE_MODE: mode,
+    ...(process.env.ZCODE_ACP_BIN ? { ZCODE_ACP_BIN: process.env.ZCODE_ACP_BIN } : {}) });
+  const spec = launchSpec({ acpCommand: fromPath ? "" : process.env.ZCODE_ACP_BIN, nativeEntry: fixture });
+  if (fromPath && process.env.ZCODE_ACP_BIN) env.PATH = path.dirname(process.env.ZCODE_ACP_BIN) + path.delimiter + env.PATH;
+  Object.assign(env, spec.env, { ZCODE_NODE: process.execPath });
   // Match BB's applyPermissionCliArgs contract. Launch the registered command,
   // rather than a manually ordered command that could hide a broken spec.
   const index = Math.min(spec.permissionCli.insertAfterArgs ?? 0, spec.args.length);
@@ -53,7 +56,7 @@ function start(t, mode = "normal", permission = "accept-edits") {
   };
 }
 
-for (const permission of ["full", "accept-edits"]) test(`BB registered launch starts with ${permission} policy without Node option errors`, async t => {
+for (const permission of ["full", "accept-edits"]) test(`BB native provider starts with ${permission} policy`, async t => {
   const agent = start(t, "normal", permission);
   await agent.request("initialize", { protocolVersion: 1 });
   const session = await agent.request("session/new", { cwd: process.cwd(), mcpServers: [] });
@@ -61,6 +64,15 @@ for (const permission of ["full", "accept-edits"]) test(`BB registered launch st
   assert.equal(session.modes.availableModes.some(mode => mode.id === "yolo"), permission === "full");
   await agent.request("session/close", { sessionId: session.sessionId });
   assert.equal(agent.stderr(), "");
+});
+
+test("BB native provider can launch zcode-acp directly from PATH", async t => {
+  const agent = start(t, "normal", "accept-edits", true);
+  const info = (await agent.request("initialize")).agentInfo;
+  assert.equal(info.name, "zcode-cli-acp");
+  assert.match(info.version, /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/);
+  const session = await agent.request("session/new", { cwd: process.cwd(), mcpServers: [] });
+  assert.equal(session.modes.currentModeId, "edit");
 });
 test("standalone ACP executable completes a fixture turn and closes cleanly", async t => {
   const agent = start(t);
