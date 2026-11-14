@@ -17,7 +17,13 @@ function start(t, mode = "normal", permission = "accept-edits", fromPath = false
   Object.assign(env, { ZCODE_NATIVE_ENTRY: fixture, ZCODE_ACP_STATE_DIR: root, ZCODE_DATA_BASE_DIR: root, FAKE_NATIVE_MODE: mode,
     ...(process.env.ZCODE_ACP_BIN ? { ZCODE_ACP_BIN: process.env.ZCODE_ACP_BIN } : {}) });
   const spec = launchSpec({ acpCommand: fromPath ? "" : process.env.ZCODE_ACP_BIN, nativeEntry: fixture });
-  if (fromPath && process.env.ZCODE_ACP_BIN) env.PATH = path.dirname(process.env.ZCODE_ACP_BIN) + path.delimiter + env.PATH;
+  if (fromPath && process.env.ZCODE_ACP_BIN) {
+    // process.env is case-insensitive on Windows; the copied plain object is
+    // not. CI exposes Path, so normalize before prepending the adapter folder.
+    const inheritedPath = process.env.PATH || "";
+    for (const key of Object.keys(env)) if (key.toUpperCase() === "PATH") delete env[key];
+    env.PATH = path.dirname(process.env.ZCODE_ACP_BIN) + path.delimiter + inheritedPath;
+  }
   Object.assign(env, spec.env, { ZCODE_NODE: process.execPath });
   // Match BB's applyPermissionCliArgs contract. Launch the registered command,
   // rather than a manually ordered command that could hide a broken spec.
