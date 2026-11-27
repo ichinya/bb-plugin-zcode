@@ -3,7 +3,10 @@ import path from "node:path";
 import { resolveCommand } from "./native-cli.mjs";
 import { nativeEnvironment } from "./zcode-installation.mjs";
 
-export const RELEASES_URL = "https://github.com/ichinya/zcode-acp/releases";
+export const ACP_REPO = "ichinya/zcode-acp";
+export const RELEASES_URL = `https://github.com/${ACP_REPO}/releases`;
+// Older releases block on a macOS Keychain dialog and put every native helper in the Dock.
+export const MIN_ACP_VERSION = "0.3.3";
 export const VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
 // BB gives the provider bridge its own bridge-data directory, while host RPC

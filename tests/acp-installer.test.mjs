@@ -9,7 +9,7 @@ import readline from "node:readline";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { zipSync } from "fflate";
-import { createAcpInstaller } from "../scripts/acp-installer.mjs";
+import { AcpSetupError, createAcpGuard, createAcpInstaller } from "../scripts/acp-installer.mjs";
 import { buildTarget, managedInstallation, selectAcp, resolveBridgeLine, RELEASES_URL } from "../scripts/managed-acp.mjs";
 import { resolveCommand } from "../scripts/native-cli.mjs";
 
@@ -24,6 +24,8 @@ function fixture(t) {
     fetches++;
     options.signal?.throwIfAborted();
     if (mode === "http") return new Response("", { status: 503 });
+    if (url.includes("api.github.com") && mode === "rate-limited") return new Response("", { status: 403 });
+    if (url === `${RELEASES_URL}/latest`) return new Response(null, { status: 302, headers: { location: `${RELEASES_URL}/tag/v${version}` } });
     if (url.includes("api.github.com")) {
       if (mode === "none") return new Response("", { status: 404 });
       const prefix = `${RELEASES_URL}/download/v${version}/`;
@@ -87,6 +89,13 @@ test("failed checksum, bad archive, wrong runtime and cancellation preserve the 
   assert.equal(managedInstallation(f.root).executable, first.executable);
 });
 
+test("a rate-limited GitHub API falls back to the latest-release redirect and still verifies SHA-256", async t => {
+  const f = fixture(t);
+  f.setMode("rate-limited");
+  assert.deepEqual((await f.installer.status({ refresh: true })).latest, { version: "0.3.1", ready: true });
+  assert.equal((await f.installer.install()).version, "0.3.1");
+});
+
 test("settings distinguish missing releases, assembling assets and network errors; cached checks can refresh", async t => {
   const f = fixture(t);
   f.setMode("none");
@@ -136,9 +145,10 @@ test("verification uses the final executable path before activating the installa
 
 test("the built BB bridge launches managed Rust for model discovery and thread construction", async t => {
   const f = fixture(t);
-  const { runJson } = await import("../scripts/native-cli.mjs");
   const real = resolveCommand(process.env.ZCODE_ACP_BIN || "zcode-acp");
-  f.setVersion((await runJson(["--version"], { acpCommand: real })).version);
+  const { runJson } = await import("../scripts/native-cli.mjs");
+  const info = await runJson(["--version"], { acpCommand: real });
+  f.setVersion(info.version);
   f.setZip(zipSync({ [executable]: fs.readFileSync(real) }));
   await createAcpInstaller({ dataDir: f.root, fetchImpl: f.fetchImpl }).install();
   const moduleUrl = new URL("../dist/host.js", import.meta.url).href;
@@ -177,4 +187,48 @@ test("the built BB bridge launches managed Rust for model discovery and thread c
     await closed; clearTimeout(kill);
     for (const item of pending.values()) clearTimeout(item.timer);
   }
+});
+
+test("a non-Rust zcode-acp on PATH is never used: the managed Rust ACP is installed once, even for concurrent starts", async t => {
+  const f = fixture(t);
+  const bin = path.join(f.root, "bin"); fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, executable), "#!/bin/sh\n", { mode: 0o755 });
+  let installs = 0;
+  const installer = { install: async () => { installs++; return f.installer.install(); } };
+  const run = async (_args, { acpCommand }) => acpCommand.startsWith(bin) ? { name: "zcode-acp", runtime: "node", version: "0.1.0" } : { name: "zcode-acp", runtime: "rust", version: "0.3.1" };
+  const ensure = createAcpGuard({ minVersion: "0.3.1", dataDir: f.root, installer, run, env: { PATH: bin } });
+  const options = { zcodeUseManagedAcp: true, acpLaunchSpec: { command: "zcode-acp" } };
+  await Promise.all([ensure(options), ensure(options)]);
+  assert.equal(installs, 1);
+  assert.equal(managedInstallation(f.root).version, "0.3.1");
+  await ensure(options);
+  assert.equal(installs, 1);
+});
+
+test("a Rust zcode-acp on PATH is used without installing; failures surface as actionable setup errors", async t => {
+  const f = fixture(t);
+  const bin = path.join(f.root, "bin"); fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, executable), "#!/bin/sh\n", { mode: 0o755 });
+  let installs = 0;
+  const failing = { install: async () => { installs++; throw new Error("GitHub download failed (HTTP 503)"); } };
+  const rust = async () => ({ name: "zcode-acp", runtime: "rust", version: "0.3.1" });
+  await createAcpGuard({ minVersion: "0.3.1", dataDir: f.root, installer: failing, run: rust, env: { PATH: bin } })({ zcodeUseManagedAcp: true, acpLaunchSpec: { command: "zcode-acp" } });
+  assert.equal(installs, 0);
+  const node = async () => ({ name: "zcode-acp", runtime: "node", version: "0.1.0" });
+  await assert.rejects(createAcpGuard({ minVersion: "0.3.1", dataDir: f.root, installer: failing, run: node, env: { PATH: bin } })({ zcodeUseManagedAcp: true, acpLaunchSpec: { command: "zcode-acp" } }),
+    error => error instanceof AcpSetupError && /automatic installation failed \(GitHub download failed \(HTTP 503\)\)/.test(error.message));
+  await assert.rejects(createAcpGuard({ minVersion: "0.3.1", dataDir: f.root, installer: failing, run: node, env: { PATH: bin } })({ zcodeUseManagedAcp: false, acpLaunchSpec: { command: path.join(bin, executable) } }),
+    error => error instanceof AcpSetupError && /not Rust zcode-acp/.test(error.message));
+});
+
+test("an outdated managed ACP is updated before a thread starts; a release older than the minimum is refused", async t => {
+  const f = fixture(t);
+  await f.installer.install();
+  assert.equal(managedInstallation(f.root).version, "0.3.1");
+  f.setVersion("0.3.2");
+  const options = { zcodeUseManagedAcp: true, acpLaunchSpec: { command: "zcode-acp" } };
+  await createAcpGuard({ minVersion: "0.3.2", dataDir: f.root, installer: f.installer, env: { PATH: "" } })(options);
+  assert.equal(managedInstallation(f.root).version, "0.3.2");
+  await assert.rejects(createAcpGuard({ minVersion: "0.4.0", dataDir: f.root, installer: f.installer, env: { PATH: "" } })(options),
+    error => error instanceof AcpSetupError && /older than the required 0\.4\.0/.test(error.message));
 });

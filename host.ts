@@ -8,9 +8,11 @@ import {
 import { resolveBridgeLine, bridgeInstallationDataDir } from "./scripts/managed-acp.mjs";
 import { withModelCatalog } from "./scripts/model-catalog.mjs";
 import { createDesktopInstaller } from "./scripts/zcode-installer.mjs";
+import { AcpSetupError, createAcpGuard } from "./scripts/acp-installer.mjs";
 
 let dataDir = "";
 let desktop: ReturnType<typeof createDesktopInstaller>;
+let ensureRustAcp: ReturnType<typeof createAcpGuard>;
 const catalogMethods = new Set(["model/list", "thread/start", "thread/resume", "thread/fork", "turn/start"]);
 
 function nativeEntry(options: Record<string, unknown> | undefined) {
@@ -78,6 +80,7 @@ export const experimental_providerBridge = experimental_defineProviderBridge({
   start(context) {
     dataDir = bridgeInstallationDataDir(context.dataDir);
     desktop = createDesktopInstaller({ dataDir });
+    ensureRustAcp = createAcpGuard({ dataDir });
     acp.start?.(context);
   },
   async handleLine(line) {
@@ -93,14 +96,16 @@ export const experimental_providerBridge = experimental_defineProviderBridge({
         reply(request.id, { result: await installationRun(request.params) });
         return;
       }
+      if (catalogMethods.has(request?.method)) await ensureRustAcp(request.params?.providerOptions ?? request.params?.options?.providerOptions);
       const resolvedLine = resolveBridgeLine(line, dataDir);
       if (!catalogMethods.has(request?.method)) { acp.handleLine(resolvedLine); return; }
       const resolved = JSON.parse(resolvedLine);
       const spec = (resolved.params?.providerOptions ?? resolved.params?.options?.providerOptions)?.acpLaunchSpec;
       if (spec?.env) spec.env = await withModelCatalog(dataDir, spec.env);
       acp.handleLine(JSON.stringify(resolved));
-    } catch {
-      reply(request?.id, { error: { code: -32000, message: "ZCode provider request failed. Check installation and access in the plugin settings." } });
+    } catch (error) {
+      const message = error instanceof AcpSetupError ? error.message : "ZCode provider request failed. Check installation and access in the plugin settings.";
+      reply(request?.id, { error: { code: -32000, message } });
     }
   },
   onClose: () => acp.onClose?.(),

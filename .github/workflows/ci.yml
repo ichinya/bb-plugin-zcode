@@ -35,7 +35,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: ichinya/zcode-acp
-          ref: v0.3.2
+          ref: v0.3.3
           path: .ci-zcode-acp
           persist-credentials: false
       - run: rustup toolchain install stable --profile minimal

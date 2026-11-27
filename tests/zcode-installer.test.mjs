@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { createDesktopInstaller, parseDesktopRelease, parseDesktopManifest } from "../scripts/zcode-installer.mjs";
-import { installedDesktop, nativeEnvironment } from "../scripts/zcode-installation.mjs";
+import { desktopCandidates, installedDesktop, nativeEnvironment } from "../scripts/zcode-installation.mjs";
 import { resolveBridgeLine } from "../scripts/managed-acp.mjs";
 import { withModelCatalog } from "../scripts/model-catalog.mjs";
 import plugin from "../dist/server.js";
@@ -157,6 +157,8 @@ test("custom paths are authoritative; a missing override never causes another in
 
 test("Windows uses the official per-user installer and macOS extracts the official ZIP", async t => {
   for (const platform of ["win32", "darwin"]) {
+    // macOS discovery checks the real /Applications; an installed ZCode is (correctly) reused there.
+    if (platform === "darwin" && desktopCandidates("darwin").some(p => fs.existsSync(p))) { t.diagnostic("ZCode is installed on this Mac; the macOS ZIP path is covered on CI"); continue; }
     const f = fixture(t, platform);
     f.installer.start({ signal: new AbortController().signal });
     assert.equal((await f.installer.wait()).phase, "installed");

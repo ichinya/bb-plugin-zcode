@@ -11,7 +11,7 @@ npm run verify
 
 This typechecks, checks the Rust adapter's runtime contract, builds BB bundles and runs CLI/ACP, installer, quota and release-policy tests. Fixtures do not send model requests. Both `npm test` and the cross-platform CI contract use the focused suite in `npm run verify`.
 
-The `CI` workflow runs on Linux, Windows and macOS with Node 24 and pinned BB CLI 0.49.0. It checks out the public Rust adapter at `v0.3.2`, builds it with `cargo build --release --locked` and passes its path through `ZCODE_ACP_BIN`. The adapter is not an npm dependency. No module deploy key is required; fork pull requests can run the same checks.
+The `CI` workflow runs on Linux, Windows and macOS with Node 24 and pinned BB CLI 0.49.0. It checks out the public Rust adapter at `v0.3.3`, builds it with `cargo build --release --locked` and passes its path through `ZCODE_ACP_BIN`. The adapter is not an npm dependency. No module deploy key is required; fork pull requests can run the same checks.
 
 ## Automatic version tags
 

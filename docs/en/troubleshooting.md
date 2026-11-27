@@ -49,3 +49,7 @@ Only adapter-owned `bb-native-*` sessions bound to the same workspace can resume
 ## Report a problem
 
 Include OS, Node/BB/ZCode versions, the failing command and a sanitized error. Omit tokens, QR links, account files, session databases and private conversation contents. Report issues in the [plugin repository](https://github.com/ichinya/bb-plugin-zcode/issues).
+
+## macOS: Keychain dialog, `exec` icons in the Dock
+
+ACP **0.3.3 or newer** reads the ZCode credential key through the signed ZCode app, so macOS shows no Keychain dialog, also after ACP updates, and runs ZCode's CLI through `ZCode Helper`, so no `exec` icons appear in the Dock. The plugin requires 0.3.3 and updates an older managed ACP before the next thread starts. If a dialog "zcode-acp wants to use … ZCode Credential Encryption" still appears, an older adapter is running: check the ACP section of the plugin settings.

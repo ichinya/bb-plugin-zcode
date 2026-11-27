@@ -2,14 +2,16 @@ import fs from "node:fs";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { unzipSync } from "fflate";
-import { buildTarget, managedInstallation, selectAcp, RELEASES_URL, VERSION } from "./managed-acp.mjs";
-import { runJson } from "./native-cli.mjs";
+import { ACP_REPO, buildTarget, managedInstallation, MIN_ACP_VERSION, selectAcp, RELEASES_URL, VERSION } from "./managed-acp.mjs";
+import { compareDesktopVersions as compareVersions } from "./zcode-installation.mjs";
+import { runJson, resolveCommand } from "./native-cli.mjs";
 
-const API = "https://api.github.com/repos/ichinya/zcode-acp/releases/latest";
+const API = `https://api.github.com/repos/${ACP_REPO}/releases/latest`;
 const MAX_ARCHIVE = 64 * 1024 * 1024;
 const installs = new Set();
 const digest = bytes => createHash("sha256").update(bytes).digest("hex");
 const message = error => error instanceof Error ? error.message : String(error);
+const isRustAcp = info => info?.runtime === "rust" && info?.name === "zcode-acp" && VERSION.test(info?.version);
 
 export function createAcpInstaller({ dataDir, fetchImpl = fetch, run = runJson, platform = process.platform, arch = process.arch }) {
   const target = buildTarget(platform, arch);
@@ -32,10 +34,30 @@ export function createAcpInstaller({ dataDir, fetchImpl = fetch, run = runJson, 
     return Buffer.concat(chunks);
   }
 
+  // The anonymous REST API allows 60 requests per hour per IP, so hosts behind a
+  // shared address get 403/429. The github.com redirect to the latest tag is not
+  // metered; asset URLs then follow the fixed release layout and the SHA-256 still gates the install.
+  async function latestFromRedirect(signal) {
+    const response = await fetchImpl(`${RELEASES_URL}/latest`, { signal, redirect: "manual", headers: { "User-Agent": "bb-plugin-zcode" } });
+    const tag = /\/releases\/tag\/([^/?#]+)$/.exec(response.headers.get("location") ?? "")?.[1];
+    if (!tag) return null;
+    const tagName = decodeURIComponent(tag);
+    const prefix = `${RELEASES_URL}/download/${encodeURIComponent(tagName)}/`;
+    const names = target ? [`zcode-acp-${target}.zip`, `zcode-acp-${target}.zip.sha256`] : [];
+    return { tag_name: tagName, draft: false, prerelease: false, assets: names.map(name => ({ name, state: "uploaded", browser_download_url: prefix + name })) };
+  }
+
   async function release(refresh, signal) {
     if (!refresh && cachedAt && Date.now() - cachedAt < 15 * 60_000) return cachedRelease;
-    const bytes = await download(API, 2 * 1024 * 1024, signal);
-    const value = bytes ? JSON.parse(bytes.toString("utf8")) : null;
+    let value;
+    try {
+      const bytes = await download(API, 2 * 1024 * 1024, signal);
+      value = bytes ? JSON.parse(bytes.toString("utf8")) : null;
+    } catch (error) {
+      if (!/HTTP (403|429)\)/.test(message(error))) throw error;
+      value = await latestFromRedirect(signal);
+      if (!value) throw error;
+    }
     if (value && (value.draft || value.prerelease || typeof value.tag_name !== "string" || !value.tag_name.startsWith("v") || !VERSION.test(value.tag_name.slice(1)))) throw new Error("Unsupported ACP release; expected a stable vX.Y.Z tag");
     cachedRelease = value; cachedAt = Date.now();
     return value;
@@ -59,7 +81,7 @@ export function createAcpInstaller({ dataDir, fetchImpl = fetch, run = runJson, 
     try {
       selected = selectAcp(dataDir, acpCommand);
       const info = await run(["--version"], { acpCommand: selected.executable, signal, timeout: 8_000 });
-      if (info?.runtime !== "rust" || info?.name !== "zcode-acp" || !VERSION.test(info?.version)) throw new Error("Selected executable is not a supported Rust zcode-acp");
+      if (!isRustAcp(info)) throw new Error("Selected executable is not a supported Rust zcode-acp");
       current = { version: info.version, executable: selected.executable, source: selected.source };
     } catch (error) { currentError = message(error); }
     let latest = null, releaseError = null;
@@ -124,4 +146,47 @@ export function createAcpInstaller({ dataDir, fetchImpl = fetch, run = runJson, 
     }
   }
   return { status, install };
+}
+
+// Errors whose text is safe and useful to show in the BB thread.
+export class AcpSetupError extends Error {}
+
+// Threads must never start through a non-Rust or outdated `zcode-acp` (for
+// example an older Node bridge on PATH): its errors are misleading. Without a
+// usable one the managed ACP is installed or updated once, shared by
+// concurrent thread starts.
+export function createAcpGuard({ dataDir, installer = createAcpInstaller({ dataDir }), run = runJson, env = process.env, minVersion = MIN_ACP_VERSION }) {
+  const verified = new Set();
+  const recent = version => VERSION.test(version) && compareVersions(version, minVersion) >= 0;
+  let installing;
+  async function usable(executable) {
+    if (verified.has(executable)) return true;
+    let info;
+    try { info = await run(["--version"], { acpCommand: executable, timeout: 8_000 }); } catch { return false; }
+    if (!isRustAcp(info) || !recent(info.version)) return false;
+    verified.add(executable);
+    return true;
+  }
+  return async function ensure(options) {
+    const command = options?.acpLaunchSpec?.command;
+    if (!command) return;
+    if (options.zcodeUseManagedAcp !== true) {
+      let executable;
+      try { executable = resolveCommand(command, env); } catch { /* reported below */ }
+      if (!executable || !(await usable(executable))) throw new AcpSetupError(`The ACP executable set in the ZCode plugin settings is not Rust zcode-acp ${minVersion} or newer. Clear the field to use the managed ACP.`);
+      return;
+    }
+    const managed = managedInstallation(dataDir);
+    if (managed && recent(managed.version)) return;
+    if (!managed) {
+      let onPath;
+      try { onPath = resolveCommand("zcode-acp", env); } catch { /* not on PATH */ }
+      if (onPath && await usable(onPath)) return;
+    }
+    installing ??= installer.install().finally(() => { installing = undefined; });
+    let installed;
+    try { installed = await installing; }
+    catch (error) { throw new AcpSetupError(`Rust zcode-acp ${minVersion}+ is not installed and the automatic installation failed (${message(error)}). Install it in the ZCode plugin settings.`); }
+    if (!recent(installed?.version)) throw new AcpSetupError(`The latest zcode-acp release (${installed?.version}) is older than the required ${minVersion}. Wait for a newer release.`);
+  };
 }
