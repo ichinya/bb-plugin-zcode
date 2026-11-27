@@ -52,4 +52,4 @@ Include OS, Node/BB/ZCode versions, the failing command and a sanitized error. O
 
 ## macOS: Keychain dialog, `exec` icons in the Dock
 
-ACP **0.3.3 or newer** reads the ZCode credential key through the signed ZCode app, so macOS shows no Keychain dialog, also after ACP updates, and runs ZCode's CLI through `ZCode Helper`, so no `exec` icons appear in the Dock. The plugin requires 0.3.3 and updates an older managed ACP before the next thread starts. If a dialog "zcode-acp wants to use … ZCode Credential Encryption" still appears, an older adapter is running: check the ACP section of the plugin settings.
+On macOS the adapter uses the system credential store. If sign-in times out, unlock Keychain and review the access request for zcode-acp on the agent machine. A changed binary may trigger a new request after an update. ZCode Helper runs the CLI without a Dock icon when available.

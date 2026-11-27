@@ -13,7 +13,7 @@ const digest = bytes => createHash("sha256").update(bytes).digest("hex");
 const message = error => error instanceof Error ? error.message : String(error);
 const isRustAcp = info => info?.runtime === "rust" && info?.name === "zcode-acp" && VERSION.test(info?.version);
 
-export function createAcpInstaller({ dataDir, fetchImpl = fetch, run = runJson, platform = process.platform, arch = process.arch }) {
+export function createAcpInstaller({ dataDir, fetchImpl = fetch, run = runJson, platform = process.platform, arch = process.arch, minVersion = MIN_ACP_VERSION }) {
   const target = buildTarget(platform, arch);
   const binary = platform === "win32" ? "zcode-acp.exe" : "zcode-acp";
   let cachedRelease;
@@ -44,7 +44,14 @@ export function createAcpInstaller({ dataDir, fetchImpl = fetch, run = runJson, 
     const tagName = decodeURIComponent(tag);
     const prefix = `${RELEASES_URL}/download/${encodeURIComponent(tagName)}/`;
     const names = target ? [`zcode-acp-${target}.zip`, `zcode-acp-${target}.zip.sha256`] : [];
-    return { tag_name: tagName, draft: false, prerelease: false, assets: names.map(name => ({ name, state: "uploaded", browser_download_url: prefix + name })) };
+    const assets = await Promise.all(names.map(async name => {
+      const url = prefix + name;
+      const probe = await fetchImpl(url, { method: "HEAD", signal });
+      if (probe.status === 404) return null;
+      if (!probe.ok) throw new Error(`GitHub download failed (HTTP ${probe.status})`);
+      return { name, state: "uploaded", browser_download_url: url };
+    }));
+    return { tag_name: tagName, draft: false, prerelease: false, assets: assets.filter(Boolean) };
   }
 
   async function release(refresh, signal) {
@@ -61,6 +68,10 @@ export function createAcpInstaller({ dataDir, fetchImpl = fetch, run = runJson, 
     if (value && (value.draft || value.prerelease || typeof value.tag_name !== "string" || !value.tag_name.startsWith("v") || !VERSION.test(value.tag_name.slice(1)))) throw new Error("Unsupported ACP release; expected a stable vX.Y.Z tag");
     cachedRelease = value; cachedAt = Date.now();
     return value;
+  }
+
+  function checkMinimum(version, minimum) {
+    if (compareVersions(version, minimum) < 0) throw new Error(`The latest zcode-acp release (${version}) is older than the required ${minimum}. Wait for a newer release.`);
   }
 
   function assets(value) {
@@ -87,21 +98,26 @@ export function createAcpInstaller({ dataDir, fetchImpl = fetch, run = runJson, 
     let latest = null, releaseError = null;
     try {
       const value = await release(refresh, signal);
-      if (value) latest = { version: value.tag_name.slice(1), ready: Boolean(assets(value)) };
+      if (value) {
+        const version = value.tag_name.slice(1);
+        checkMinimum(version, minVersion);
+        latest = { version, ready: Boolean(assets(value)) };
+      }
     } catch (error) { releaseError = message(error); }
     let managed = null;
     try { managed = managedInstallation(dataDir); } catch { /* currentError reports a broken default installation */ }
     return { target, current, currentError, managed, latest, releaseError, releasesUrl: RELEASES_URL };
   }
 
-  /** @param {{signal?: AbortSignal}} options */
-  async function install({ signal } = {}) {
+  /** @param {{signal?: AbortSignal, minimum?: string}} options */
+  async function install({ signal, minimum = minVersion } = {}) {
     if (!target) throw new Error(`No ACP binary for ${platform}/${arch}`);
     if (installs.has(dataDir)) throw new Error("ACP installation is already running on this computer");
     installs.add(dataDir);
     let stage;
     try {
       const value = await release(true, signal);
+      if (value) checkMinimum(value.tag_name.slice(1), minimum);
       const files = assets(value);
       if (!files) throw new Error("ACP release binaries are not available yet. Wait for the release workflow to finish.");
       const checksumBytes = await download(files.checksum.browser_download_url, 1024, signal);
@@ -156,16 +172,20 @@ export class AcpSetupError extends Error {}
 // usable one the managed ACP is installed or updated once, shared by
 // concurrent thread starts.
 export function createAcpGuard({ dataDir, installer = createAcpInstaller({ dataDir }), run = runJson, env = process.env, minVersion = MIN_ACP_VERSION }) {
-  const verified = new Set();
+  const verified = new Map();
   const recent = version => VERSION.test(version) && compareVersions(version, minVersion) >= 0;
   let installing;
   async function usable(executable) {
-    if (verified.has(executable)) return true;
-    let info;
-    try { info = await run(["--version"], { acpCommand: executable, timeout: 8_000 }); } catch { return false; }
-    if (!isRustAcp(info) || !recent(info.version)) return false;
-    verified.add(executable);
-    return true;
+    try {
+      const stat = await fs.promises.stat(executable);
+      if (!stat.isFile()) return false;
+      const signature = `${stat.ctimeMs}:${stat.mtimeMs}:${stat.size}`;
+      if (verified.get(executable) === signature) return true;
+      const info = await run(["--version"], { acpCommand: executable, timeout: 8_000 });
+      if (!isRustAcp(info) || !recent(info.version)) return false;
+      verified.set(executable, signature);
+      return true;
+    } catch { return false; }
   }
   return async function ensure(options) {
     const command = options?.acpLaunchSpec?.command;
@@ -176,17 +196,21 @@ export function createAcpGuard({ dataDir, installer = createAcpInstaller({ dataD
       if (!executable || !(await usable(executable))) throw new AcpSetupError(`The ACP executable set in the ZCode plugin settings is not Rust zcode-acp ${minVersion} or newer. Clear the field to use the managed ACP.`);
       return;
     }
+    installing ??= ensureManaged().finally(() => { installing = undefined; });
+    await installing;
+  };
+
+  async function ensureManaged() {
     const managed = managedInstallation(dataDir);
-    if (managed && recent(managed.version)) return;
+    if (managed && recent(managed.version) && await usable(managed.executable)) return;
     if (!managed) {
       let onPath;
       try { onPath = resolveCommand("zcode-acp", env); } catch { /* not on PATH */ }
       if (onPath && await usable(onPath)) return;
     }
-    installing ??= installer.install().finally(() => { installing = undefined; });
     let installed;
-    try { installed = await installing; }
+    try { installed = await installer.install({ minimum: minVersion }); }
     catch (error) { throw new AcpSetupError(`Rust zcode-acp ${minVersion}+ is not installed and the automatic installation failed (${message(error)}). Install it in the ZCode plugin settings.`); }
     if (!recent(installed?.version)) throw new AcpSetupError(`The latest zcode-acp release (${installed?.version}) is older than the required ${minVersion}. Wait for a newer release.`);
-  };
+  }
 }

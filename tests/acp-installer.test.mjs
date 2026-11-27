@@ -24,18 +24,19 @@ function fixture(t) {
     fetches++;
     options.signal?.throwIfAborted();
     if (mode === "http") return new Response("", { status: 503 });
-    if (url.includes("api.github.com") && mode === "rate-limited") return new Response("", { status: 403 });
+    if (url.includes("api.github.com") && mode.startsWith("rate-limited")) return new Response("", { status: 403 });
     if (url === `${RELEASES_URL}/latest`) return new Response(null, { status: 302, headers: { location: `${RELEASES_URL}/tag/v${version}` } });
     if (url.includes("api.github.com")) {
       if (mode === "none") return new Response("", { status: 404 });
       const prefix = `${RELEASES_URL}/download/v${version}/`;
       return Response.json({ tag_name: `v${version}`, draft: false, prerelease: false, assets: mode === "pending" ? [] : [name, `${name}.sha256`].map(name => ({ name, state: "uploaded", browser_download_url: prefix + name })) });
     }
+    if (options.method === "HEAD") return new Response(null, { status: mode === "rate-limited-missing" && url.endsWith(".sha256") ? 404 : 200 });
     if (url.endsWith(".sha256")) return new Response(`${mode === "checksum" ? "0".repeat(64) : createHash("sha256").update(zip).digest("hex")}  ${name}\n`);
     return new Response(zip);
   };
   const run = async () => ({ name: "zcode-acp", runtime: mode === "wrong-runtime" ? "node" : "rust", version });
-  const installer = createAcpInstaller({ dataDir: root, fetchImpl, run });
+  const installer = createAcpInstaller({ dataDir: root, minVersion: "0.3.1", fetchImpl, run });
   return { root, installer, fetchImpl, setVersion: v => { version = v; }, setMode: v => { mode = v; }, setZip: value => { zip = value; }, fetches: () => fetches };
 }
 
@@ -94,6 +95,9 @@ test("a rate-limited GitHub API falls back to the latest-release redirect and st
   f.setMode("rate-limited");
   assert.deepEqual((await f.installer.status({ refresh: true })).latest, { version: "0.3.1", ready: true });
   assert.equal((await f.installer.install()).version, "0.3.1");
+  f.setMode("rate-limited-missing");
+  assert.equal((await f.installer.status({ refresh: true })).latest.ready, false);
+  await assert.rejects(f.installer.install(), /not available yet/);
 });
 
 test("settings distinguish missing releases, assembling assets and network errors; cached checks can refresh", async t => {
@@ -131,7 +135,7 @@ test("verification uses the final executable path before activating the installa
   const first = await f.installer.install();
   f.setVersion("0.3.2");
   let verifiedPath;
-  const installer = createAcpInstaller({ dataDir: f.root, fetchImpl: f.fetchImpl, run: async (_args, options) => {
+  const installer = createAcpInstaller({ dataDir: f.root, minVersion: "0.3.1", fetchImpl: f.fetchImpl, run: async (_args, options) => {
     verifiedPath = options.acpCommand;
     assert.equal(managedInstallation(f.root).executable, first.executable);
     assert.match(path.basename(path.dirname(verifiedPath)), /^0\.3\.2-[a-f0-9-]+$/);
@@ -229,6 +233,23 @@ test("an outdated managed ACP is updated before a thread starts; a release older
   const options = { zcodeUseManagedAcp: true, acpLaunchSpec: { command: "zcode-acp" } };
   await createAcpGuard({ minVersion: "0.3.2", dataDir: f.root, installer: f.installer, env: { PATH: "" } })(options);
   assert.equal(managedInstallation(f.root).version, "0.3.2");
+  const pointer = fs.readFileSync(path.join(f.root, "acp/current.json"), "utf8");
+  const before = f.fetches();
   await assert.rejects(createAcpGuard({ minVersion: "0.4.0", dataDir: f.root, installer: f.installer, env: { PATH: "" } })(options),
     error => error instanceof AcpSetupError && /older than the required 0\.4\.0/.test(error.message));
+  assert.equal(f.fetches() - before, 1);
+  assert.equal(fs.readFileSync(path.join(f.root, "acp/current.json"), "utf8"), pointer);
+});
+
+test("deleting a previously verified managed binary triggers repair", async t => {
+  const f = fixture(t);
+  f.setVersion("0.3.3");
+  const first = await f.installer.install();
+  const run = async () => ({ name: "zcode-acp", runtime: "rust", version: "0.3.3" });
+  const ensure = createAcpGuard({ dataDir: f.root, installer: f.installer, run });
+  const options = { zcodeUseManagedAcp: true, acpLaunchSpec: { command: "zcode-acp" } };
+  await ensure(options);
+  fs.unlinkSync(first.executable);
+  await ensure(options);
+  assert.ok(fs.existsSync(managedInstallation(f.root).executable));
 });
