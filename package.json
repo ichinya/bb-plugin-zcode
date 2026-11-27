@@ -1,6 +1,6 @@
 {
   "name": "bb-plugin-zcode-acp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "ZCode Coding Plan, Start Plan and personal API models in BB, with Rust ACP installation, updates and plan quotas.",
   "keywords": [
     "bb-plugin",
